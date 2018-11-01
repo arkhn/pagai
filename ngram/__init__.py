@@ -1,0 +1,1 @@
+from ngram.model import NGramClassifier

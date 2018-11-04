@@ -2,6 +2,7 @@ import re
 import pickle
 
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 from .utils import *
 
@@ -26,24 +27,26 @@ class NGramClassifier:
         for column, label in column_labels.items():
             self.label_columns[label].append(column)
 
-        n_grams_weighted = self.extract_n_grams(columns)
+        # n_grams_weighted = self.extract_n_grams(columns)
+        #
+        # limit = 0.01  # this is arbitrary -> tfidf and n_feat limit instead
+        # n_grams_feat = [k for k, v in n_grams_weighted.items() if v > limit]
+        # print('ngrams kept:', len(n_grams_feat), '/', len(n_grams_weighted))
 
-        limit = 0.01  # this is arbitrary -> tfidf and n_feat limit instead
-        n_grams_feat = [k for k, v in n_grams_weighted.items() if v > limit]
-        print('ngrams kept:', len(n_grams_feat), '/', len(n_grams_weighted))
-
-        X_train, y_train, X_test, y_test = self.build_datasets(columns, column_labels, n_grams_feat, 1000)
+        X_train, y_train, X_test, y_test = self.build_datasets(columns, column_labels, 1000)
 
         return X_train, y_train, X_test, y_test
 
-    def fit(self, X_train, y_train):
+    def fit(self, X_train, y_train, ngram_range=(2, 4)):
+        X_train, y_train = self.n_gram_fit_transform(X_train, y_train, ngram_range)
         self.clf.fit(X_train, y_train)
 
     def predict(self, X_test):
+        X_test = self.n_gram_transform(X_test)
         y_pred = self.clf.predict(X_test)
         return y_pred
 
-    def build_datasets(self, columns, column_labels, n_grams_feat, n_train=1000):
+    def build_datasets(self, columns, column_labels, n_train=1000):
         test_frac = 0.2
         n_items = int(n_train * (1 + test_frac))
         items = []
@@ -67,22 +70,33 @@ class NGramClassifier:
             if not isnan(cell):
                 items.append((cell, ilabel))
 
-        n_feats = len(n_grams_feat)
-
         X_train, y_train = [], []
         X_test, y_test = [], []
         for i, item in enumerate(items):
             cell, icol = item
-            n_grams = self.find_ngrams(cell)
-            feats = [j for j, n_gram in enumerate(n_grams_feat) if n_gram in n_grams]
             if i < n_train:
-                X_train.append(one_hot_vector(feats, n_feats))
+                X_train.append(cell)
                 y_train.append(icol)
             else:
-                X_test.append(one_hot_vector(feats, n_feats))
+                X_test.append(cell)
                 y_test.append(icol)
 
-        return np.array(X_train), np.array(y_train), np.array(X_test), np.array(y_test)
+        return X_train, y_train, X_test, y_test
+
+    def n_gram_fit_transform(self, X_train, y_train, ngram_range):
+        self.vectorizer = TfidfVectorizer(
+            analyzer=NGramClassifier.call_find_ngrams(
+                ngram_range=ngram_range
+            )
+        )
+        X = self.vectorizer.fit_transform(X_train)
+        print(X.shape)
+        return X.toarray(), np.array(y_train)
+
+    def n_gram_transform(self, X_test):
+        X = self.vectorizer.transform(X_test)
+        print(X.shape)
+        return X.toarray()
 
     def extract_n_grams(self, columns):
         n_grams_weighted = {}
@@ -95,7 +109,43 @@ class NGramClassifier:
                 n_grams_weighted[n_gram] += weight
         return n_grams_weighted
 
+    @staticmethod
+    def call_find_ngrams(ngram_range=(3,)):
+        if len(ngram_range) == 2:
+            ngram_range = range(ngram_range[0], ngram_range[1] + 1)
+
+        def find_ngrams(cell):
+            if isnan(cell):
+                return []
+            if isinstance(cell, float):
+                cell = int(cell)
+            if isinstance(cell, int):
+                cell = str(cell)
+            if isinstance(cell, str):
+                # Cell global preprocessing:
+                # * Rm end point
+                if cell[-1] == '.':
+                    cell = cell[:-1]
+
+                all_grams = []
+                for n in ngram_range:
+                    raw_n_grams = zip(*[cell[i:] for i in range(n)])
+                    # Remove n_grams with invalid characters like spaces
+                    except_chars = [' ', '.', '?', '!']
+                    n_grams = [''.join(n_gram) for n_gram in raw_n_grams if notin(n_gram, except_chars)]
+                    # Replace some characters like numbers with generic masks
+                    n_grams = [re.sub('\d', '\d', n_gram) for n_gram in n_grams]
+                    all_grams += n_grams
+                return all_grams
+            else:
+                raise TypeError('TYPE', type(cell))
+
+        return find_ngrams
+
     def find_ngrams(self, cell, n=3):
+        """
+        OBSOLETE
+        """
         if isnan(cell):
             return []
         if isinstance(cell, float):

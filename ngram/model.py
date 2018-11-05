@@ -12,13 +12,19 @@ class NGramClassifier:
         self.n_gram_size = n_gram_size
         self.clf = RandomForestClassifier(n_estimators=300, max_depth=4, random_state=0)
 
-    def preprocess(self, data_file_path=None):
-        if data_file_path is None:
-            raise FileExistsError('Please make sure to provide the path of a '
-                                  'pickled file which contains a dict with columns. '
-                                  'See tutorial notebooks to create such a file.')
-        with open(data_file_path, 'rb') as f:
-            columns, column_labels = pickle.load(f)
+    def preprocess(self, columns, column_labels):
+        # Dict columns can have nested lists, we create one key for each of them
+        extended_columns = {}
+        extended_column_labels = {}
+        for name, column in columns.items():
+            for i, dataset in enumerate(column):
+                col_name = name
+                if len(column) > 1:
+                    col_name = '{}#{}'.format(name, i+1)
+                extended_columns[col_name] = dataset
+                extended_column_labels[col_name] = column_labels[name]
+        columns = extended_columns
+        column_labels = extended_column_labels
 
         self.labels = list(set(column_labels.values()))
         self.n_labels = len(self.labels)
@@ -33,7 +39,7 @@ class NGramClassifier:
         # n_grams_feat = [k for k, v in n_grams_weighted.items() if v > limit]
         # print('ngrams kept:', len(n_grams_feat), '/', len(n_grams_weighted))
 
-        X_train, y_train, X_test, y_test = self.build_datasets(columns, column_labels, 1000)
+        X_train, y_train, X_test, y_test = self.build_datasets(columns, column_labels)
 
         return X_train, y_train, X_test, y_test
 
@@ -46,9 +52,7 @@ class NGramClassifier:
         y_pred = self.clf.predict(X_test)
         return y_pred
 
-    def build_datasets(self, columns, column_labels, n_train=1000):
-        test_frac = 0.2
-        n_items = int(n_train * (1 + test_frac))
+    def build_datasets(self, columns, column_labels, n_items=1000):
         items = []
 
         column_lengths = {column_name: len(col) for column_name, col in columns.items()}
@@ -74,7 +78,7 @@ class NGramClassifier:
         X_test, y_test = [], []
         for i, item in enumerate(items):
             cell, icol = item
-            if i < n_train:
+            if i < 0.8 * n_items:
                 X_train.append(cell)
                 y_train.append(icol)
             else:

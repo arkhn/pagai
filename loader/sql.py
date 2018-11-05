@@ -39,7 +39,10 @@ def fetch_columns(column_names, limit=None):
 
         nb_datasets = 1
         if isinstance(column_name, tuple):
-            column_name, nb_datasets = column_name
+            if len(column_name) >= 2:
+                column_name, nb_datasets = column_name
+            else:
+                column_name = column_name[0]
 
         table, column = column_name.split('.')
         order_limit = 'ORDER BY '
@@ -67,7 +70,11 @@ def fetch_columns(column_names, limit=None):
         for i in range(nb_datasets):
             if limit is not None:
                 datasets.append(rows[i*limit:(i+1)*limit])
+                # if there's a limit but it's too high for length of rows,
+                # just return all the rows and exit the loop
+                if (i + 1) * limit >= len(rows):
+                    break
             else:
                 datasets.append(rows)
-        columns[column] = datasets
+        columns[column_name] = datasets
     return columns

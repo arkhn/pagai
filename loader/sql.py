@@ -30,11 +30,17 @@ def has_frequency(table):
 
 
 def fetch_columns(column_names, limit=None):
-    if isinstance(column_names, str):
+    # Put arg in a list if it is not the case
+    if isinstance(column_names, (str, tuple)):
         column_names = [column_names]
 
     columns = {}
     for column_name in column_names:
+
+        nb_datasets = 1
+        if isinstance(column_name, tuple):
+            column_name, nb_datasets = column_name
+
         table, column = column_name.split('.')
         order_limit = 'ORDER BY '
 
@@ -44,16 +50,24 @@ def fetch_columns(column_names, limit=None):
         else:
             order_limit += 'RANDOM() '
 
-        # Add limit if given
+        # Add limit if given (note that we multiply with nb_datasets: we avoid duplicates)
         if isinstance(limit, int):
-            order_limit += 'LIMIT {}'.format(limit)
+            order_limit += 'LIMIT {}'.format(limit * nb_datasets)
 
         # Assemble and run SQL query
         query = 'SELECT {} FROM {} {};'.format(column, table, order_limit)
         result = run(query)
 
-        # Post-process: unwrap from rows and re-order
+        # Post-process: unwrap from rows, randomly re-order
         rows = [res[0] for res in result]
         random.shuffle(rows)
-        columns[column] = rows
+
+        # Reorganize results in the right number of datasets
+        datasets = []
+        for i in range(nb_datasets):
+            if limit is not None:
+                datasets.append(rows[i*limit:(i+1)*limit])
+            else:
+                datasets.append(rows)
+        columns[column] = datasets
     return columns

@@ -1,3 +1,4 @@
+import random
 import psycopg2
 
 from loader import Credential
@@ -17,19 +18,42 @@ def run(query):
     return output_row
 
 
+def has_frequency(table):
+    """
+    Check if there is a column frequency, which will act as a weight for sampling
+    """
+    query = "SELECT column_name " \
+            "FROM information_schema.columns " \
+            "WHERE table_name='{}' and column_name='{}';".format(table, 'frequency')
+    result = run(query)
+    return len(result) > 0
+
+
 def fetch_columns(column_names, limit=None):
     if isinstance(column_names, str):
         column_names = [column_names]
 
-    if isinstance(limit, int):
-        limit = 'ORDER BY RANDOM() LIMIT {}'.format(limit)
-    else:
-        limit = ''
-
     columns = {}
     for column_name in column_names:
         table, column = column_name.split('.')
-        query = 'SELECT {} FROM {} {};'.format(column, table, limit)
+        order_limit = 'ORDER BY '
+
+        # If there is a weight for sampling, use log log to have frequent but various rows
+        if has_frequency(table):
+            order_limit += 'LOG(LOG(frequency+2)) * RANDOM() DESC '
+        else:
+            order_limit += 'RANDOM() '
+
+        # Add limit if given
+        if isinstance(limit, int):
+            order_limit += 'LIMIT {}'.format(limit)
+
+        # Assemble and run SQL query
+        query = 'SELECT {} FROM {} {};'.format(column, table, order_limit)
         result = run(query)
-        columns[column] = [res[0] for res in result]
+
+        # Post-process: unwrap from rows and re-order
+        rows = [res[0] for res in result]
+        random.shuffle(rows)
+        columns[column] = rows
     return columns

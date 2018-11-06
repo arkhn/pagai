@@ -1,4 +1,5 @@
 import random
+import datetime
 import psycopg2
 
 from loader import Credential
@@ -64,6 +65,21 @@ def fetch_columns(column_names, limit=None):
         # Post-process: unwrap from rows, randomly re-order
         rows = [res[0] for res in result]
         random.shuffle(rows)
+
+        # Post-process: convert to str
+        if len(rows) > 0 and not isinstance(rows[0], str):
+            str_rows = []
+            for row in rows:
+                if row is None:
+                    str_row = ''
+                elif isinstance(row, (int, float, str)):
+                    str_row = str(row)
+                elif isinstance(row, datetime.date):
+                    str_row = row.isoformat()
+                else:
+                    raise TypeError('Format of input is not supported', row, )
+                str_rows.append(str_row)
+            rows = str_rows
 
         # Reorganize results in the right number of datasets
         datasets = []

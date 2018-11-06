@@ -121,10 +121,6 @@ class NGramClassifier:
         def find_ngrams(cell):
             if isnan(cell):
                 return []
-            if isinstance(cell, float):
-                cell = int(cell)
-            if isinstance(cell, int):
-                cell = str(cell)
             if isinstance(cell, str):
                 # Cell global preprocessing:
                 # * Rm end point
@@ -142,30 +138,9 @@ class NGramClassifier:
                     all_grams += n_grams
                 return all_grams
             else:
-                raise TypeError('TYPE', type(cell))
+                raise TypeError('Cell should be None, Nan or str but got', type(cell))
 
         return find_ngrams
-
-    def find_ngrams(self, cell, n=3):
-        """
-        OBSOLETE
-        """
-        if isnan(cell):
-            return []
-        if isinstance(cell, float):
-            cell = int(cell)
-        if isinstance(cell, int):
-            cell = str(cell)
-        if isinstance(cell, str):
-            all_grams = zip(*[cell[i:] for i in range(n)])
-            # Remove n_grams avec invalid characters like spaces
-            except_chars = [' ']
-            n_grams = [''.join(n_gram) for n_gram in all_grams if notin(n_gram, except_chars)]
-            # Replace some characters like numbers with generic masks
-            n_grams = [re.sub('\d', '\d', n_gram) for n_gram in n_grams]
-            return n_grams
-        else:
-            raise TypeError('TYPE', type(cell))
 
     def col_ngrams(self, col, n=3, n_grams=None):
         if n_grams is None:

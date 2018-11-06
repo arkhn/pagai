@@ -31,11 +31,12 @@ def has_frequency(table):
     return len(result) > 0
 
 
-def fetch_columns(column_names, limit=None):
+def fetch_columns(column_names, limit=None, load_bar=None):
     # Put arg in a list if it is not the case
     if isinstance(column_names, (str, tuple)):
         column_names = [column_names]
 
+    i_col = 0
     columns = []
     for column_name in column_names:
         column_name, nb_datasets = column_name
@@ -72,12 +73,14 @@ def fetch_columns(column_names, limit=None):
                 )
 
             # Post-process: convert to str if needed
-            if len(rows) > 0 and not isinstance(rows[0], str):
+            if len(rows) > 0:
                 str_rows = []
                 for row in rows:
                     if row is None:
                         str_row = ''
-                    elif isinstance(row, (int, float, str)):
+                    elif isinstance(row, str):
+                        str_row = row
+                    elif isinstance(row, (int, float)):
                         str_row = str(row)
                     elif isinstance(row, datetime.date):
                         str_row = row.isoformat()
@@ -86,4 +89,8 @@ def fetch_columns(column_names, limit=None):
                     str_rows.append(str_row)
                 rows = str_rows
             columns.append((column_name, rows))
+
+            if load_bar is not None:
+                i_col += 1
+                load_bar.value = i_col
     return columns

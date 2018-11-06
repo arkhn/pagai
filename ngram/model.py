@@ -105,8 +105,10 @@ class NGramClassifier:
     def add_stat_features(X, X_plain):
         # 1. len of the row
         X_len = np.vectorize(len)(X_plain).reshape((-1, 1))
-        X = np.hstack((X, X_len))
-        print(X.shape)
+        # 2. Nb of words
+        X_n_words = np.vectorize(lambda x: len(x.split(' ')))(X_plain).reshape((-1, 1))
+
+        X = np.hstack((X, X_len, X_n_words))
         return X
 
     def n_gram_transform(self, X_test):
@@ -115,7 +117,6 @@ class NGramClassifier:
         X = X.toarray()
         # Add extra features
         X = self.add_stat_features(X, X_test)
-        print(X.shape)
         return X
 
     def extract_n_grams(self, columns):

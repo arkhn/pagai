@@ -94,13 +94,29 @@ class NGramClassifier:
             )
         )
         X = self.vectorizer.fit_transform(X_train)
+        # Convert from sparse matrix to np.array
+        X = X.toarray()
+        # Add extra features
+        X = self.add_stat_features(X, X_train)
+
+        return X, np.array(y_train)
+
+    @staticmethod
+    def add_stat_features(X, X_plain):
+        # 1. len of the row
+        X_len = np.vectorize(len)(X_plain).reshape((-1, 1))
+        X = np.hstack((X, X_len))
         print(X.shape)
-        return X.toarray(), np.array(y_train)
+        return X
 
     def n_gram_transform(self, X_test):
         X = self.vectorizer.transform(X_test)
+        # Convert from sparse matrix to np.array
+        X = X.toarray()
+        # Add extra features
+        X = self.add_stat_features(X, X_test)
         print(X.shape)
-        return X.toarray()
+        return X
 
     def extract_n_grams(self, columns):
         n_grams_weighted = {}

@@ -12,34 +12,14 @@ class NGramClassifier:
         self.n_gram_size = n_gram_size
         self.clf = RandomForestClassifier(n_estimators=300, max_depth=4, random_state=0)
 
-    def preprocess(self, columns, column_labels):
-        # Dict columns can have nested lists, we create one key for each of them
-        extended_columns = {}
-        extended_column_labels = {}
-        for name, column in columns.items():
-            for i, dataset in enumerate(column):
-                col_name = name
-                if len(column) > 1:
-                    col_name = '{}#{}'.format(name, i+1)
-                extended_columns[col_name] = dataset
-                extended_column_labels[col_name] = column_labels[name]
-        columns = extended_columns
-        column_labels = extended_column_labels
-
-        self.labels = list(set(column_labels.values()))
+    def preprocess(self, columns, labels):
+        """
+        Reorganise data from the SQL loader, add stats features and split in train/test
+        """
+        self.labels = labels
         self.n_labels = len(self.labels)
 
-        self.label_columns = {label: [] for label in self.labels}
-        for column, label in column_labels.items():
-            self.label_columns[label].append(column)
-
-        # n_grams_weighted = self.extract_n_grams(columns)
-        #
-        # limit = 0.01  # this is arbitrary -> tfidf and n_feat limit instead
-        # n_grams_feat = [k for k, v in n_grams_weighted.items() if v > limit]
-        # print('ngrams kept:', len(n_grams_feat), '/', len(n_grams_weighted))
-
-        X_train, y_train, X_test, y_test = self.build_datasets(columns, column_labels)
+        X_train, y_train, X_test, y_test = self.build_datasets(columns, labels)
 
         return X_train, y_train, X_test, y_test
 
@@ -52,11 +32,13 @@ class NGramClassifier:
         y_pred = self.clf.predict(X_test)
         return y_pred
 
-    def build_datasets(self, columns, column_labels):
-
+    def build_datasets(self, columns, labels):
+        """
+        Add stat features about the column dataset and split into train/test
+        """
         X, y = [], []
-        for column_name, dataset in columns.items():
-            label = column_labels[column_name]
+        for column, label in zip(columns, labels):
+            column_name, dataset = column
             ilabel = [i for i, l in enumerate(self.labels) if l == label][0]
             stat_features = self.add_stat_features(dataset)
             X.append([column_name, stat_features, dataset])
@@ -78,86 +60,95 @@ class NGramClassifier:
         return X_train, y_train, X_test, y_test
 
     @staticmethod
-    def add_stat_features(X_plain):
+    def add_stat_features(dataset):
+        """
+        Add several stats features about the dataset of each column
+        """
         # 1. len of the row
-        n_char = np.vectorize(len)(X_plain).mean()
+        n_char = np.vectorize(len)(dataset).mean()
         # 2. Nb of words
-        n_words = np.vectorize(lambda x: len(x.split(' ')))(X_plain).mean()
+        n_words = np.vectorize(lambda x: len(x.split(' ')))(dataset).mean()
         # 3. Percentage of unique values / all values
-        p_unique = len(np.unique(X_plain)) / len(X_plain)
+        p_unique = len(np.unique(dataset)) / len(dataset)
 
         stats = np.hstack((n_char, n_words, p_unique))
         return stats
 
-    def n_gram_fit_transform(self, X_train_raw, y_train, ngram_range):
-        self.vectorizer = TfidfVectorizer(
+    @staticmethod
+    def apply_on_column_datasets(X_columns, func):
+        """
+        Method used to apply a function on the fusion of the datasets split in X_columns
+        Should return the same structure than X_column with the dataset split again
+        """
+        merged_dataset = []
+        datasets_length = []
+
+        for row in X_columns:
+            dataset = row[2]
+            merged_dataset += dataset
+            datasets_length.append(len(dataset))
+
+        merged_dataset = func(merged_dataset)
+        # Convert from sparse matrix to np.array
+        merged_dataset = merged_dataset.toarray()
+
+        start = 0
+        for i, row in enumerate(X_columns):
+            stop = start + datasets_length[i]
+
+            dataset_vectorised = merged_dataset[start:stop]
+            ngram_vector = np.sum(dataset_vectorised, axis=0)
+            row[2] = ngram_vector
+
+            start = stop
+
+        return X_columns
+
+    @staticmethod
+    def transform_to_matrix(X_columns):
+        """
+        Transform the dataset which is a list of rows, each of which is a tuple.
+        Each tuple is changed into a 1-d numpy array, and last the rows are
+        concat in a single numpy array
+        """
+        X = []
+        for row in X_columns:
+            # TODO: here we drop column name row[0]. Don't.
+            col_stat_features = row[1]
+            ngram_vector = row[2]
+
+            item = np.hstack((
+                col_stat_features.reshape(1, -1),
+                ngram_vector.reshape(1, -1)
+            ))
+            X.append(item)
+
+        return np.concatenate(X)
+
+    def n_gram_fit_transform(self, X_train_col, y_train, ngram_range):
+        self.n_gram_vectorizer = TfidfVectorizer(
             analyzer=NGramClassifier.call_find_ngrams(
                 ngram_range=ngram_range
             )
         )
-        merged_dataset = []
-        datasets_length = []
+        X_train_col = self.apply_on_column_datasets(
+            X_train_col,
+            self.n_gram_vectorizer.fit_transform
+        )
 
-        for row in X_train_raw:
-            dataset = row[2]
-            merged_dataset += dataset
-            datasets_length.append(len(dataset))
+        X_train = self.transform_to_matrix(X_train_col)
 
-        merged_dataset = self.vectorizer.fit_transform(merged_dataset)
-        # Convert from sparse matrix to np.array
-        merged_dataset = merged_dataset.toarray()
+        return X_train, np.array(y_train)
 
-        start = 0
-        X_train = []
-        for i, row in enumerate(X_train_raw):
-            stop = start + datasets_length[i]
+    def n_gram_transform(self, X_test_col):
+        X_test_col = self.apply_on_column_datasets(
+            X_test_col,
+            self.n_gram_vectorizer.transform
+        )
 
-            col_stat_features = row[1]
-            dataset_vectorised = merged_dataset[start:stop]
-            ngram_vector = np.sum(dataset_vectorised, axis=0)
-            # TODO: here we drop column name. Don't.
-            item = np.hstack((
-                col_stat_features.reshape(1, -1),
-                ngram_vector.reshape(1, -1)
-            ))
-            X_train.append(item)
+        X_test = self.transform_to_matrix(X_test_col)
 
-            start = stop
-
-        return np.concatenate(X_train), np.array(y_train)
-
-    def n_gram_transform(self, X_test_raw):
-        merged_dataset = []
-        datasets_length = []
-
-        for row in X_test_raw:
-            dataset = row[2]
-            merged_dataset += dataset
-            datasets_length.append(len(dataset))
-
-        merged_dataset = self.vectorizer.transform(merged_dataset)
-        # Convert from sparse matrix to np.array
-        merged_dataset = merged_dataset.toarray()
-
-        start = 0
-        X_test = []
-        for i, row in enumerate(X_test_raw):
-            stop = start + datasets_length[i]
-
-            col_stat_features = row[1]
-            dataset_vectorised = merged_dataset[start:stop]
-            ngram_vector = np.sum(dataset_vectorised, axis=0)
-            # TODO: here we drop column name. Don't.
-            item = np.hstack((
-                col_stat_features.reshape(1, -1),
-                ngram_vector.reshape(1, -1)
-            ))
-            X_test.append(item)
-
-            start = stop
-
-        return np.concatenate(X_test)
-
+        return X_test
 
     def extract_n_grams(self, columns):
         n_grams_weighted = {}

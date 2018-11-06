@@ -36,7 +36,7 @@ def fetch_columns(column_names, limit=None):
     if isinstance(column_names, (str, tuple)):
         column_names = [column_names]
 
-    columns = {}
+    columns = []
     for column_name in column_names:
         column_name, nb_datasets = column_name
 
@@ -57,7 +57,6 @@ def fetch_columns(column_names, limit=None):
         query = 'SELECT {} FROM {} {};'.format(column, table, order_limit)
 
         # Run query and build the datasets
-        datasets = []
         for i in range(nb_datasets):
             # Run SQL
             result = run(query)
@@ -86,7 +85,5 @@ def fetch_columns(column_names, limit=None):
                         raise TypeError('Format of input is not supported', row, )
                     str_rows.append(str_row)
                 rows = str_rows
-            datasets.append(rows)
-
-        columns[column_name] = datasets
+            columns.append((column_name, rows))
     return columns

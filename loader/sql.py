@@ -54,6 +54,37 @@ def get_length(table, connection=None):
     return length[0][0]
 
 
+def get_columns(table, connection=None, include_data_type=False):
+    """
+    Return column names of a table
+    """
+    info = ['column_name']
+    if include_data_type:
+        info.append('data_type')
+    query = "SELECT {} " \
+            "FROM information_schema.columns " \
+            "WHERE table_name='{}';".format(', '.join(info), table)
+    result = run(query, connection)
+    if include_data_type:
+        columns = result
+    else:
+        columns = np.array(result).T[0]
+    return columns
+
+
+def get_tables(connection=None):
+    """
+    Return all table names in the active db
+    """
+    query = "select table_name " \
+            "from information_schema.tables " \
+            "where table_schema = 'public';"
+
+    result = run(query, connection)
+    tables = np.array(result).T[0]
+    return tables
+
+
 def has_frequency(table, connection=None):
     """
     Check if there is a column frequency, which will act as a weight for sampling

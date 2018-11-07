@@ -176,6 +176,13 @@ class NGramClassifier:
                     cell = cell[:-1]
 
                 all_grams = []
+
+                # If cell is a single character
+                if len(cell) == 1 and 1 not in ngram_range:
+                    unigram = '^{}$'.format(cell)
+                    all_grams.append(unigram)
+
+                # Then, loop on all kinds of n-gram
                 for n in ngram_range:
                     raw_n_grams = zip(*[cell[i:] for i in range(n)])
                     # Remove n_grams with invalid characters like spaces

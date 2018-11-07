@@ -2,95 +2,140 @@ import random
 import datetime
 import psycopg2
 import logging
+import numpy as np
 
 from loader import Credential
 
-def run(query):
-    with psycopg2.connect(host="localhost",
-                          port=5432,
-                          database=Credential.DATABASE.value,
-                          user=Credential.USER.value,
-                          password=Credential.PASSWORD.value) as connection:
-        with connection.cursor() as cursor:
+sql_params = {
+    'host': "localhost",
+    'port': 5432,
+    'database': Credential.DATABASE.value,
+    'user': Credential.USER.value,
+    'password': Credential.PASSWORD.value
+}
+
+
+def run(queries, connection=None):
+    """
+    Execute queries and can create a sql connection if needed
+    """
+    if connection is None:
+        with psycopg2.connect(**sql_params) as connection:
+            results = execute(queries, connection)
+
+            connection.commit()
+    else:
+        results = execute(queries, connection)
+
+    return results if isinstance(queries, list) > 1 else results[0]
+
+
+def execute(queries, connection):
+    """
+    Execute queries with a given sql connection
+    """
+    results = []
+    with connection.cursor() as cursor:
+        if not isinstance(queries, list):
+            queries = [queries]
+        for query in queries:
             cursor.execute(query)
-            output_row = cursor.fetchall()
-
-        connection.commit()
-
-    return output_row
+            result = cursor.fetchall()
+            results.append(result)
+    return results
 
 
-def has_frequency(table):
+def get_length(table, connection=None):
+    """
+    Return the length of a table
+    """
+    query = "SELECT count(*) FROM {};".format(table)
+    length = run(query, connection)
+    return length[0][0]
+
+
+def has_frequency(table, connection=None):
     """
     Check if there is a column frequency, which will act as a weight for sampling
     """
     query = "SELECT column_name " \
             "FROM information_schema.columns " \
             "WHERE table_name='{}' and column_name='{}';".format(table, 'frequency')
-    result = run(query)
+    result = run(query, connection)
     return len(result) > 0
 
 
-def fetch_columns(column_names, limit=None, load_bar=None):
-    # Put arg in a list if it is not the case
-    if isinstance(column_names, (str, tuple)):
-        column_names = [column_names]
+def fetch_columns(column_names, limit, load_bar=None):
+    with psycopg2.connect(**sql_params) as connection:
+        # Put arg in a list if it is not the case
+        if isinstance(column_names, (str, tuple)):
+            column_names = [column_names]
 
-    i_col = 0
-    columns = []
-    for column_name in column_names:
-        column_name, nb_datasets = column_name
+        i_col = 0
+        columns = []
+        for column_name in column_names:
+            column_name, nb_datasets = column_name
 
-        table, column = column_name.split('.')
+            table, column = column_name.split('.')
 
-        # If there is a weight for sampling, use log log to have frequent but various rows
-        order_limit = 'ORDER BY '
-        if has_frequency(table):
-            order_limit += 'LOG(LOG(frequency+2)) * RANDOM() DESC '
-        else:
-            order_limit += 'RANDOM() '
+            n_rows = get_length(table, connection)
 
-        # Add limit if given (note that we multiply with nb_datasets: we avoid duplicates)
-        if isinstance(limit, int):
-            order_limit += 'LIMIT {}'.format(limit)
+            # If there is a weight for sampling, use log log to have frequent but various rows
+            weighted_sampling = has_frequency(table, connection)
+            order_limit = 'ORDER BY '
+            if weighted_sampling:
+                order_limit += 'LOG(LOG(frequency+2)) * RANDOM() DESC '
+            else:
+                order_limit += 'RANDOM() '
 
-        # Assemble SQL query
-        query = 'SELECT {} FROM {} {};'.format(column, table, order_limit)
+            # Add limit (note that we multiply with nb_datasets)
+            order_limit += 'LIMIT {}'.format(limit * nb_datasets)
 
-        # Run query and build the datasets
-        for i in range(nb_datasets):
-            # Run SQL
-            result = run(query)
+            # Assemble SQL query
+            query = 'SELECT {} FROM {} {};'.format(column, table, order_limit)
+
+            # Run SQL to get samples of the database
+            sampled_rows = run(query, connection)
 
             # Post-process: unwrap from rows, randomly re-order
-            rows = [res[0] for res in result]
-            random.shuffle(rows)
-
-            if limit is not None and len(rows) < limit:
-                logging.warning(
-                    "Columns for {} couldn't be filled completely ({}/{})".format(
-                        column_name, len(rows), limit)
-                )
+            sampled_rows = [row[0] for row in sampled_rows]
+            random.shuffle(sampled_rows)
 
             # Post-process: convert to str if needed
-            if len(rows) > 0:
-                str_rows = []
-                for row in rows:
-                    if row is None:
-                        str_row = ''
-                    elif isinstance(row, str):
-                        str_row = row
-                    elif isinstance(row, (int, float)):
-                        str_row = str(row)
-                    elif isinstance(row, datetime.date):
-                        str_row = row.isoformat()
-                    else:
-                        raise TypeError('Format of input is not supported', row, )
-                    str_rows.append(str_row)
-                rows = str_rows
-            columns.append((column_name, rows))
+            for i, row in enumerate(sampled_rows):
+                if row is None:
+                    sampled_rows[i] = ''
+                elif isinstance(row, str):
+                    pass
+                elif isinstance(row, (int, float)):
+                    sampled_rows[i] = str(row)
+                elif isinstance(row, datetime.date):
+                    sampled_rows[i] = row.isoformat()
+                else:
+                    raise TypeError('Format of row is not supported', type(row), row)
 
-            if load_bar is not None:
-                i_col += 1
-                load_bar.value = i_col
-    return columns
+            # Choose table rows ids with a uniform sampling with replacement strategy
+            datasets_virtual_ids = np.random.randint(0, n_rows, (nb_datasets, limit))
+
+            # List all unique ids selected
+            virtual_unique_ids = list(set(datasets_virtual_ids.reshape(1,-1)[0].tolist()))
+
+            # Map ids to real row indices of sampled_rows
+            virtual_sampled_mapping = {v_id: s_id for s_id, v_id in enumerate(virtual_unique_ids)}
+            mapper = lambda x: virtual_sampled_mapping[x]
+
+            for i in range(nb_datasets):
+                # Find the ids for the given dataset corresponding to the sampled_rows
+                virtual_ids = datasets_virtual_ids[i]
+                sampled_ids = np.vectorize(mapper)(virtual_ids)
+
+                # Get the rows
+                rows = [sampled_rows[row_id] for row_id in sampled_ids]
+
+                columns.append((column_name, rows))
+
+                # Update the progress bar
+                if load_bar is not None:
+                    i_col += 1
+                    load_bar.value = i_col
+        return columns

@@ -1,10 +1,10 @@
-import random
 import datetime
-import psycopg2
-import logging
-import numpy as np
+import random
 
-from loader import Credential
+import numpy as np
+import psycopg2
+
+from src.loader import Credential
 
 sql_params = {
     'host': "localhost",
@@ -96,7 +96,7 @@ def has_frequency(table, connection=None):
     return len(result) > 0
 
 
-def fetch_columns(column_names, limit, load_bar=None):
+def fetch_columns(column_names, dataset_size, load_bar=None):
     with psycopg2.connect(**sql_params) as connection:
         # Put arg in a list if it is not the case
         if isinstance(column_names, (str, tuple)):
@@ -120,13 +120,16 @@ def fetch_columns(column_names, limit, load_bar=None):
                 order_limit += 'RANDOM() '
 
             # Add limit (note that we multiply with nb_datasets)
-            order_limit += 'LIMIT {}'.format(limit * nb_datasets)
+            order_limit += 'LIMIT {}'.format(dataset_size * nb_datasets)
 
             # Assemble SQL query
             query = 'SELECT {} FROM {} {};'.format(column, table, order_limit)
 
             # Run SQL to get samples of the database
             sampled_rows = run(query, connection)
+
+            if len(sampled_rows) == 0:
+                continue
 
             # Post-process: unwrap from rows, randomly re-order
             sampled_rows = [row[0] for row in sampled_rows]
@@ -146,7 +149,7 @@ def fetch_columns(column_names, limit, load_bar=None):
                     raise TypeError('Format of row is not supported', type(row), row)
 
             # Choose table rows ids with a uniform sampling with replacement strategy
-            datasets_virtual_ids = np.random.randint(0, n_rows, (nb_datasets, limit))
+            datasets_virtual_ids = np.random.randint(0, n_rows, (nb_datasets, dataset_size))
 
             # List all unique ids selected
             virtual_unique_ids = list(set(datasets_virtual_ids.reshape(1,-1)[0].tolist()))

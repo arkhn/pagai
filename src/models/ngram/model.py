@@ -4,27 +4,64 @@ import random
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from src.models.base import BaseClassifier
 from .utils import *
 
 
-class NGramClassifier:
-    def __init__(self, n_gram_size=3):
-        self.n_gram_size = n_gram_size
-        self.clf = RandomForestClassifier(n_estimators=300, max_depth=4, random_state=0)
+class NGramClassifier(BaseClassifier):
+    def __init__(self):
+        super().__init__()
+        self.ngram_range = ()
+        self.labels = []
+        self.classification = None
+        self.n_gram_vectorizer = None
+        self.clf = RandomForestClassifier(n_estimators=300, max_depth=50, max_features='sqrt', random_state=0)
 
-    def preprocess(self, columns, labels):
+    def __getstate__(self):
+        """
+        Utility method for pickle.dump
+        We need to remove the analyzer because of some error.
+        """
+        self.n_gram_vectorizer.analyzer = None
+        state = {
+            'labels': self.labels,
+            'ngram_range': self.ngram_range,
+            'n_gram_vectorizer': self.n_gram_vectorizer,
+            'clf': self.clf,
+            'classification': self.classification,
+        }
+        return state
+
+    def __setstate__(self, state):
+        """
+        Utility method for pickle.load
+        We need to rebuild the analyzer
+        """
+        self.labels = state['labels']
+        self.n_gram_vectorizer = state['n_gram_vectorizer']
+        self.clf = state['clf']
+        self.ngram_range = state['ngram_range']
+        self.n_gram_vectorizer.analyzer = NGramClassifier.call_find_ngrams(
+                ngram_range=self.ngram_range
+        )
+        self.classification = state['classification']
+
+    def preprocess(self, columns, labels, test_only=False):
         """
         Reorganise data from the SQL loader, add stats features and split in train/test
         """
-        self.labels = labels
-        self.n_labels = len(self.labels)
-
-        X_train, y_train, X_test, y_test = self.build_datasets(columns, labels)
-
-        return X_train, y_train, X_test, y_test
+        if not test_only:
+            self.labels = labels
+        X_sets, reordered_columns =  self.build_datasets(columns, labels, test_only)
+        if test_only:
+            return X_sets, reordered_columns
+        else:
+            return X_sets
 
     def fit(self, X_train, y_train, ngram_range=(2, 4)):
-        X_train, y_train = self.n_gram_fit_transform(X_train, y_train, ngram_range)
+        self.ngram_range = ngram_range
+        X_train, y_train = self.n_gram_fit_transform(X_train, y_train)
+        print(X_train.shape)
         self.clf.fit(X_train, y_train)
 
     def predict(self, X_test):
@@ -32,10 +69,26 @@ class NGramClassifier:
         y_pred = self.clf.predict(X_test)
         return y_pred
 
-    def build_datasets(self, columns, labels):
+    def build_datasets(self, columns, labels, test_only):
         """
         Add stat features about the column dataset and split into train/test
         """
+        if test_only:
+            X = []
+            for column in columns:
+                column_name, dataset = column
+                stat_features = self.add_stat_features(dataset)
+                X.append([column_name, stat_features, dataset])
+            n_items = len(X)
+            ix = list(range(n_items))
+            random.shuffle(ix)
+            X_test = []
+            reordered_columns = []
+            for i in range(n_items):
+                X_test.append(X[ix[i]])
+                reordered_columns.append(columns[ix[i]])
+            return X_test, reordered_columns
+
         X, y = [], []
         for column, label in zip(columns, labels):
             column_name, dataset = column
@@ -46,10 +99,13 @@ class NGramClassifier:
 
         X_train, y_train = [], []
         X_test, y_test = [], []
+        reordered_columns = []
         n_items = len(X)
         ix = list(range(n_items))
         random.shuffle(ix)
+
         for i in range(n_items):
+            reordered_columns.append(columns[ix[i]])
             if i < 0.8 * n_items:
                 X_train.append(X[ix[i]])
                 y_train.append(y[ix[i]])
@@ -57,7 +113,7 @@ class NGramClassifier:
                 X_test.append(X[ix[i]])
                 y_test.append(y[ix[i]])
 
-        return X_train, y_train, X_test, y_test
+        return (X_train, y_train, X_test, y_test), reordered_columns
 
     @staticmethod
     def add_stat_features(dataset):
@@ -71,7 +127,7 @@ class NGramClassifier:
         # 3. Percentage of unique values / all values
         p_unique = len(np.unique(dataset)) / len(dataset)
 
-        stats = np.hstack((n_char, n_words, p_unique))
+        stats = np.hstack((n_char-n_char, ))
         return stats
 
     @staticmethod
@@ -125,10 +181,10 @@ class NGramClassifier:
 
         return np.concatenate(X)
 
-    def n_gram_fit_transform(self, X_train_col, y_train, ngram_range):
+    def n_gram_fit_transform(self, X_train_col, y_train):
         self.n_gram_vectorizer = TfidfVectorizer(
             analyzer=NGramClassifier.call_find_ngrams(
-                ngram_range=ngram_range
+                ngram_range=self.ngram_range
             )
         )
         X_train_col = self.apply_on_column_datasets(
@@ -175,7 +231,7 @@ class NGramClassifier:
                 if cell[-1] == '.':
                     cell = cell[:-1]
 
-                all_grams = []
+                all_grams = ['not']
 
                 # If cell is a single character
                 if len(cell) == 1 and 1 not in ngram_range:

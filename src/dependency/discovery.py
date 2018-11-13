@@ -1,12 +1,14 @@
 import re
+
 import numpy as np
 
-from loader import sql
+from src.loader import sql
+
 
 class Discovery():
-    def __init__(self, database, head_table):
+    def __init__(self, database, owner):
         self.database = database
-        self.head_table = head_table
+        self.owner = owner
         # self.connection = sql.get_connection(database)
 
     def find_id_like_columns(self, table):
@@ -21,7 +23,6 @@ class Discovery():
         for column_name, column_type in column_infos:
             column_names.append(column_name)
             column_types.append(column_type)
-
 
         query = 'SELECT * FROM {} LIMIT 1000;'.format(table)
         results = sql.run(query)
@@ -64,7 +65,6 @@ class Discovery():
                     return True
         return False
 
-
     def find_compatible_tables(self, table, id_column, id_column_type):
         """
         Return the names of the tables which could be joined on table.id_column
@@ -88,6 +88,22 @@ class Discovery():
             joinable_tables += tables
 
         return sorted(list(set(joinable_tables)))
+
+    def build_dependency_graph(self):
+        owner = self.owner
+        tables = sql.get_tables()
+        graph = {}
+        for table in tables:
+            table_id = self.table_id(owner, table)
+            joinable_tables = self.find_joinable_tables(table)
+            graph[table_id] = [self.table_id(owner, table) for table in joinable_tables]
+
+        return graph
+
+
+    @staticmethod
+    def table_id(owner, table):
+        return '{}:{}'.format(owner, table)
 
 
 

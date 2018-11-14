@@ -1,1 +1,1 @@
-from .resources import Search, BasicSearch
+from .resources import Search

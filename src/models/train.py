@@ -73,20 +73,19 @@ def train(owner, database, model='ngram'):
         prod_datasets, _labels = spec_from_source(prod_source)
         columns = loader.fetch_columns(prod_datasets, dataset_size=100)
         X, columns = model.preprocess(columns, _labels, test_only=True)
-        y_pred = model.predict(X)
+        y_pred = model.predict_proba(X)
 
         classification = {}
-        for column, pred_key in zip(columns, y_pred):
+        for column, pred_proba in zip(columns, y_pred):
             column_name, column_data = column
-            label = model.pred2label(pred_key)
-            if label not in classification:
-                classification[label] = []
-            full_column_name = '{}.{}'.format(owner, column_name)
+            labels = [model.pred2label(input) for input in model.clf.classes_]
+            labels_proba = {l: p for l, p in zip(labels, pred_proba)}
             column = {
-                'name': full_column_name,
+                'labels': labels_proba,
                 'data': column_data
             }
-            classification[label].append(column)
+            full_column_name = '{}.{}'.format(owner, column_name)
+            classification[full_column_name] = column
         model.classification = classification
 
     return model

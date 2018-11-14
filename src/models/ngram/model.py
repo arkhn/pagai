@@ -69,6 +69,11 @@ class NGramClassifier(BaseClassifier):
         y_pred = self.clf.predict(X_test)
         return y_pred
 
+    def predict_proba(self, X_test):
+        X_test = self.n_gram_transform(X_test)
+        y_pred_proba = self.clf.predict_proba(X_test)
+        return y_pred_proba
+
     def build_datasets(self, columns, labels, test_only):
         """
         Add stat features about the column dataset and split into train/test

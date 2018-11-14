@@ -1,2 +1,9 @@
-black
-pytest
+Flask==1.0.2
+psycopg2_binary==2.7.5
+pytest==3.3.2
+numpy==1.14.5
+requests==2.18.4
+Flask_RESTful==0.3.6
+psycopg2==2.7.6.1
+scikit_learn==0.20.0
+PyYAML==3.13

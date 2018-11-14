@@ -2,8 +2,8 @@ import logging
 import psycopg2
 
 
-from src import loader
-from src.models import ngram
+from engine import loader
+from engine.models import ngram
 
 
 # This is the training set, also used for testing and giving a score estimate
@@ -70,8 +70,7 @@ def train(owner, database, model='ngram'):
 
     logging.warning('Building classification...')
     # Create connection to the `prod` database, on which we use the search engine
-    sql_params = loader.sql_params
-    # sql_params['database'] = database
+    sql_params = loader.get_sql_config('prod_database')
     with psycopg2.connect(**sql_params) as connection:
         # Get all tables
         prod_tables = loader.get_tables(connection)

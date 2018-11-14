@@ -1,0 +1,10 @@
+sql:
+    training_database:
+        database: 'mimic'
+        user: '***'
+        options: #'--search_path=mimiciii'
+
+    prod_database:
+        database: 'mimic'
+        user: '***'
+        options: #'--search_path=mimiciii'

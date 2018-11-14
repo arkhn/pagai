@@ -2,7 +2,7 @@ import re
 
 import numpy as np
 
-from src.loader import sql
+from engine.loader import sql
 
 
 class Discovery():
@@ -99,7 +99,6 @@ class Discovery():
             graph[table_id] = [self.table_id(owner, table) for table in joinable_tables]
 
         return graph
-
 
     @staticmethod
     def table_id(owner, table):

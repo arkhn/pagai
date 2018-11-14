@@ -2,7 +2,7 @@ from flask_restful import Resource, reqparse
 import requests
 
 from api.common.utils import file_response
-from src.query import Query
+from engine.query import Query
 
 
 ENCODING = 'utf-8'

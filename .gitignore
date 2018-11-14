@@ -1,5 +1,5 @@
 notebooks/data/
-loader/config.py
+# config.yml
 
 .DS_Store
 .idea/*

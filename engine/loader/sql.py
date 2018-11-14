@@ -1,19 +1,23 @@
+import os
 import datetime
 import random
 
 import numpy as np
 import psycopg2
+import yaml
 
-from src.loader import Credential
 
-sql_params = {
-    #'host': "localhost",
-    #'port': 5432,
-    'database': Credential.DATABASE.value,
-    'user': Credential.USER.value,
-    #'password': Credential.PASSWORD.value
-    'options': Credential.OPTIONS.value
-}
+def get_sql_config(database='training_database'):
+    path = os.path.dirname(__file__)
+    filename = '../config.yml'
+    with open(os.path.join(path, filename)) as config_file:
+        config = yaml.safe_load(config_file)['sql']
+        if database not in config:
+            raise AttributeError(
+                'The database {} is not configured for the engine. '
+                'Did you meant {}?'.format(database, ', '.join(list(config.keys()))))
+        config = config[database]
+        return config
 
 
 def run(queries, connection=None):
@@ -21,6 +25,7 @@ def run(queries, connection=None):
     Execute queries and can create a sql connection if needed
     """
     if connection is None:
+        sql_params = get_sql_config('training_database')
         with psycopg2.connect(**sql_params) as connection:
             results = execute(queries, connection)
 
@@ -102,6 +107,7 @@ def fetch_columns(column_names, dataset_size, load_bar=None):
     Given a spec in column_names, and a dataset_size,
     return extracted columns that will be used for training
     """
+    sql_params = get_sql_config('training_database')
     with psycopg2.connect(**sql_params) as connection:
         # Put arg in a list if it is not the case
         if isinstance(column_names, (str, tuple)):

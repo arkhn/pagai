@@ -3,8 +3,8 @@ import pickle
 import logging
 from pathlib import Path
 
-from src.dependency import Discovery as Discovery
-from src import models
+from engine.dependency import Discovery as Discovery
+from engine import models
 
 SAVE_PATH_FILE = 'build/query.pickle'
 

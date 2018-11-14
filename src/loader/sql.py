@@ -97,6 +97,10 @@ def has_frequency(table, connection=None):
 
 
 def fetch_columns(column_names, dataset_size, load_bar=None):
+    """
+    Given a spec in column_names, and a dataset_size,
+    return extracted columns that will be used for training
+    """
     with psycopg2.connect(**sql_params) as connection:
         # Put arg in a list if it is not the case
         if isinstance(column_names, (str, tuple)):

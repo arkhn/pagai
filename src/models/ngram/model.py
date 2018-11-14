@@ -65,11 +65,18 @@ class NGramClassifier(BaseClassifier):
         self.clf.fit(X_train, y_train)
 
     def predict(self, X_test):
+        """
+        Return for each column the most probable resource_type class code.
+        Use pred2label to get the string label.
+        """
         X_test = self.n_gram_transform(X_test)
         y_pred = self.clf.predict(X_test)
         return y_pred
 
     def predict_proba(self, X_test):
+        """
+        Return for each column a tuple of probabilities, one per class
+        """
         X_test = self.n_gram_transform(X_test)
         y_pred_proba = self.clf.predict_proba(X_test)
         return y_pred_proba
@@ -212,6 +219,12 @@ class NGramClassifier(BaseClassifier):
         return X_test
 
     def extract_n_grams(self, columns):
+        """
+        NOT USED AT THE MOMENT
+        Given columns, for each column, get the ngrams found, add it
+        to a global counter (n_grams_weighted) with a normalising
+        weighting function to give every column the same importance.
+        """
         n_grams_weighted = {}
         for name, col in columns.items():
             length = len(col)
@@ -224,10 +237,20 @@ class NGramClassifier(BaseClassifier):
 
     @staticmethod
     def call_find_ngrams(ngram_range=(3,)):
+        """
+        Function wrapping the find_ngram function to provide an extra
+        argument (ngram_range), which would not be possible otherwise as
+        it is called by TfidfVectorizer to be its analyzer.
+        :param ngram_range: the desired n_gram settings
+        :return: the function that find n_grams with the settings provided
+        """
         if len(ngram_range) == 2:
             ngram_range = range(ngram_range[0], ngram_range[1] + 1)
 
         def find_ngrams(cell):
+            """
+            Find n_grams in the row of a column (called a cell)
+            """
             if isnan(cell):
                 return []
             if isinstance(cell, str):
@@ -236,7 +259,7 @@ class NGramClassifier(BaseClassifier):
                 if cell[-1] == '.':
                     cell = cell[:-1]
 
-                all_grams = ['not']
+                all_grams = []
 
                 # If cell is a single character
                 if len(cell) == 1 and 1 not in ngram_range:
@@ -258,11 +281,23 @@ class NGramClassifier(BaseClassifier):
 
         return find_ngrams
 
-    def col_ngrams(self, col, n=3, n_grams=None):
+    def col_ngrams(self, col, ngram_range=(3, ), n_grams=None):
+        """
+        NOT USED AT THE MOMENT
+        For a given column, for each element (called cell), find all ngrams and
+        increment a counter dictionary, where all keys are ngrams found so far
+        and values are the number of occurrence
+        :param col: the given column
+        :param ngram_range: parameters for the ngrams we use
+        :param n_grams: the counter dictionary given as argument to have incremental behaviour within cols
+        :return: the counter dictionary
+        """
+        find_ngrams = self.call_find_ngrams(ngram_range)
+
         if n_grams is None:
             n_grams = {}
         for cell in col:
-            for n_gram in self.find_ngrams(cell, n):
+            for n_gram in find_ngrams(cell):
                 if n_gram not in n_grams:
                     n_grams[n_gram] = 1
                 else:
@@ -270,12 +305,18 @@ class NGramClassifier(BaseClassifier):
         return n_grams
 
     def pred2label(self, pred):
+        """
+        Convert label codes used for training to the real string value
+        """
         pred = int(pred)
         for icol, label in enumerate(self.labels):
             if icol == pred:
                 return label
 
     def score(self, y_pred, y_test):
+        """
+        Utility function to build accuracy and false positive (FP) scores per class
+        """
         good_pred = 0
         label_acc = {label: {'TP': 0, 'NB': 0, 'FP': 0} for label in list(self.labels)}
         n_pred = len(y_pred)

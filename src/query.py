@@ -25,14 +25,14 @@ class Query:
         database, owner = self.database, self.owner
         query_pickle = Path(SAVE_PATH_FILE)
         if query_pickle.is_file() and not force_retrain:
-            logging.info('Model already trained!')
+            logging.warning('Model ready!')
             with open(SAVE_PATH_FILE, 'rb') as pickle_file:
                 query = pickle.load(pickle_file)
                 self.dependency_graph = query.dependency_graph
                 self.model = query.model
                 return self
         else:
-            logging.info('Model training...')
+            logging.warning('Training model...')
             # Load the discovery module to build the dependency graph
             #discovery = Discovery(database, owner)
             dependency_graph = None #discovery.build_dependency_graph()

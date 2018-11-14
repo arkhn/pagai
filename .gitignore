@@ -1,5 +1,4 @@
 notebooks/data/
-loader/config.py
 
 .DS_Store
 .idea/*

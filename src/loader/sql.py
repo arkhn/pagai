@@ -7,11 +7,12 @@ import psycopg2
 from src.loader import Credential
 
 sql_params = {
-    'host': "localhost",
-    'port': 5432,
+    #'host': "localhost",
+    #'port': 5432,
     'database': Credential.DATABASE.value,
     'user': Credential.USER.value,
-    'password': Credential.PASSWORD.value
+    #'password': Credential.PASSWORD.value
+    'options': Credential.OPTIONS.value
 }
 
 

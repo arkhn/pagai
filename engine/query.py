@@ -34,8 +34,8 @@ class Query:
         else:
             logging.warning('Training model...')
             # Load the discovery module to build the dependency graph
-            #discovery = Discovery(database, owner)
-            dependency_graph = None #discovery.build_dependency_graph()
+            discovery = Discovery(database, owner)
+            dependency_graph = discovery.build_dependency_graph()
 
             # Load and train the model
             model = models.train.train(owner, database, 'ngram')

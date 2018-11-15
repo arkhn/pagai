@@ -7,6 +7,34 @@ import psycopg2
 import yaml
 
 
+def cache(request):
+    """
+    Caching decorator for storage, to cache all redundant sql queries
+    """
+    storage = {}
+
+    def store(*args, connection=None, **kwargs):
+        # Remove connection arg if given as args
+        sql_args = []
+        for arg in args:
+            if isinstance(arg, psycopg2.extensions.connection):
+                connection = arg
+            else:
+                sql_args.append(arg)
+
+        # Build identifier based on args and kwargs
+        identifier = ';'.join(map(str, sql_args)) + '#' + ';'.join(['{}:{}'.format(k, v) for k, v in kwargs.items()])
+
+        # Search storage based on identifier
+        if identifier not in storage:
+            result = request(*sql_args, connection=connection, **kwargs)
+            storage[identifier] = result
+
+        return storage[identifier]
+
+    return store
+
+
 def get_sql_config(database='training_database'):
     path = os.path.dirname(__file__)
     filename = '../config.yml'
@@ -51,6 +79,7 @@ def execute(queries, connection):
     return results
 
 
+@cache
 def get_length(table, connection=None):
     """
     Return the length of a table
@@ -60,6 +89,32 @@ def get_length(table, connection=None):
     return length[0][0]
 
 
+@cache
+def get_tables(connection=None):
+    """
+    Return all table names in the active db
+    """
+    query = "select table_name " \
+            "from information_schema.tables " \
+            "where table_schema = 'public';"
+
+    result = run(query, connection)
+    tables = np.array(result).T[0]
+    return tables
+
+
+@cache
+def get_table(table, connection=None, limit=1000):
+    """
+    Return content of a table with a limit
+    """
+    query = 'SELECT * FROM {} ORDER BY RANDOM() LIMIT {};'.format(table, limit)
+    results = run(query, connection)
+    results = np.array(results)
+    return results
+
+
+@cache
 def get_columns(table, connection=None, include_data_type=False):
     """
     Return column names of a table
@@ -78,17 +133,21 @@ def get_columns(table, connection=None, include_data_type=False):
     return columns
 
 
-def get_tables(connection=None):
+@cache
+def get_column(table, column, connection=None):
     """
-    Return all table names in the active db
+    Return one column's table content with limit
+    Used only to find value in the content, so the result is converted in a set.
     """
-    query = "select table_name " \
-            "from information_schema.tables " \
-            "where table_schema = 'public';"
+    table_len = get_length(table, connection)
+    limit = max(5000, round(table_len ** (2 / 3)))
+    query = "SELECT {} " \
+            "FROM {} " \
+            "ORDER BY RANDOM() LIMIT {}".format(column, table, limit)
+    results = run(query, connection)
+    results = set([res[0] for res in results])
 
-    result = run(query, connection)
-    tables = np.array(result).T[0]
-    return tables
+    return results
 
 
 def has_frequency(table, connection=None):

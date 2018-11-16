@@ -139,7 +139,7 @@ class NGramClassifier(BaseClassifier):
         # 3. Percentage of unique values / all values
         p_unique = len(np.unique(dataset)) / len(dataset)
 
-        stats = np.hstack((n_char-n_char, ))
+        stats = np.hstack((n_char, n_words, p_unique))
         return stats
 
     @staticmethod

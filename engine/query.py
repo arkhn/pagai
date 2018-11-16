@@ -8,7 +8,6 @@ from engine import models
 
 SAVE_PATH_FILE = 'build/query.pickle'
 
-
 class Query:
     def __init__(self, database, owner):
         self.database = database
@@ -16,10 +15,29 @@ class Query:
         self.dependency_graph = None
         self.model = None
 
-    def find(self, resource_type):
+    def find(self, resource_type, parent_table=None, max_results=10):
+        """
+        Find all columns with a given resource_type and more criteria:
+        - parent_table (Optional): the tables close to the parent_table are favoured
+        - more to come
+        """
+        # Send request to the model
         key_word = resource_type.upper()
         columns = self.model.find_all(key_word)
-        return columns
+
+        # If a parent table is provided, downvote the tables that are "far" from the parent table
+        if parent_table is not None:
+            for column in columns:
+                distance = self.dependency_graph.get_distance(parent_table, column.table)
+                column.score *= 2 ** (-distance)
+
+        # Sort to have the column with the biggest score first
+        columns.sort(key=lambda x: x.score, reverse=True)
+
+        # Don't display all results
+        columns = columns[:max_results]
+
+        return self.api_response(columns)
 
     def load(self, force_retrain=False):
         database, owner = self.database, self.owner
@@ -49,4 +67,11 @@ class Query:
                 pickle.dump(self, file)
 
             return self
+
+    @staticmethod
+    def api_response(results):
+        response = []
+        for res in results:
+            response.append(res.ser())
+        return response
 

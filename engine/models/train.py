@@ -1,10 +1,10 @@
 import logging
-import psycopg2
 
+import psycopg2
 
 from engine import loader
 from engine.models import ngram
-
+from engine.structure import Column
 
 # This is the training set, also used for testing and giving a score estimate
 # works as follows (RESOURCE_TYPE, TABLE.COLUMN, NB_DATASETS)
@@ -91,17 +91,15 @@ def train(owner, database, model='ngram'):
         y_pred = model.predict_proba(X)
 
         # TODO : Move the classification elsewhere.
-        classification = {}
+        classification = []
         for column, pred_proba in zip(columns, y_pred):
             column_name, column_data = column
+            table_name = column_name.split('.')[0]
+            column = Column(table_name, column_name, data=column_data)
             labels = [model.pred2label(input) for input in model.clf.classes_]
-            labels_proba = {l: p for l, p in zip(labels, pred_proba)}
-            column = {
-                'labels': labels_proba,
-                'data': column_data
-            }
-            full_column_name = '{}.{}'.format(owner, column_name)
-            classification[full_column_name] = column
+            proba_classes = {l: p for l, p in zip(labels, pred_proba)}
+            column.set_proba_classes(proba_classes)
+            classification.append(column)
         model.classification = classification
 
     logging.warning('Done. Ready!')

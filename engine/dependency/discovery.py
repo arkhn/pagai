@@ -5,6 +5,8 @@ import psycopg2
 
 from engine.loader import sql
 
+from engine.structure import Graph, Table
+
 
 class Discovery:
     def __init__(self, database, owner):
@@ -110,13 +112,12 @@ class Discovery:
         graph = Graph()
         with psycopg2.connect(**self.sql_params) as connection:
             owner = self.owner
-            table = sql.get_tables(connection)
-            for table in table:
+            tables = sql.get_tables(connection)
+            for table in tables:
                 graph.add_table(table)
 
             start_time = time.time()
-            for table in table:
-                table = str(table)
+            for table in tables:
                 print('*********************  {}   {}\n'.format(table, time.time() - start_time))
                 joinable_tables = self.find_joinable_tables(table, connection)
 
@@ -132,64 +133,7 @@ class Discovery:
     def table_id(owner, table):
         return '{}:{}'.format(owner, table)
 
-class Table:
-    def __init__(self, table_name):
-        self.name = table_name
-        self.adjacent = {}
 
-    def __str__(self):
-        display = [str(self.name)]
-        for table in self.adjacent:
-            display.append('\t' + table.name)
-            for join in self.adjacent[table]:
-                display.append('\t\t' + '='.join(join))
-        return '\n'.join(display)
-
-    def add_join(self, table, join_info):
-        if table not in self.adjacent:
-            self.adjacent[table] = []
-        self.adjacent[table].append(join_info)
-
-    def get_joins(self):
-        return self.adjacent.keys()
-
-    def get_id(self):
-        return self.name
-
-    def get_join(self, table):
-        return self.adjacent[table]
-
-class Graph:
-    def __init__(self):
-        self.table_dict = {}
-        self.num_tables = 0
-
-    def __iter__(self):
-        return iter(self.table_dict.values())
-
-    def add_table(self, table_name):
-        self.num_tables = self.num_tables + 1
-        new_table = Table(table_name)
-        self.table_dict[table_name] = new_table
-        return new_table
-
-    def get_table(self, name):
-        if name in self.table_dict:
-            return self.table_dict[name]
-        else:
-            return None
-
-    def add_join(self, frm, to, join_info):
-        if frm not in self.table_dict:
-            self.add_table(frm)
-        if to not in self.table_dict:
-            self.add_table(to)
-
-        self.table_dict[frm].add_join(self.table_dict[to], join_info)
-        # self.table_dict[to].add_join(self.table_dict[frm], join_info)
-
-    def get_tables(self):
-        return self.table_dict.keys()
 
 
 

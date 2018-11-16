@@ -2,6 +2,7 @@ import os
 import pickle
 import logging
 from pathlib import Path
+import numpy as np
 
 from engine.dependency import Discovery as Discovery
 from engine import models
@@ -15,7 +16,7 @@ class Query:
         self.dependency_graph = None
         self.model = None
 
-    def find(self, resource_type, parent_table=None, max_results=10):
+    def find(self, resource_type, parent_table=None, column_name=None, max_results=10):
         """
         Find all columns with a given resource_type and more criteria:
         - parent_table (Optional): the tables close to the parent_table are favoured
@@ -25,11 +26,18 @@ class Query:
         key_word = resource_type.upper()
         columns = self.model.find_all(key_word)
 
-        # If a parent table is provided, downvote the tables that are "far" from the parent table
+        # If a parent table is provided, down vote the tables that are "far" from the parent table
         if parent_table is not None:
             for column in columns:
                 distance = self.dependency_graph.get_distance(parent_table, column.table)
                 column.score *= 2 ** (-distance)
+
+        # If column_name is provided, up vote columns that fit with it
+        if column_name is not None:
+            query = column_name
+            for column in columns:
+                distance = column.match_name_score(query)
+                column.score *= 1 / np.sqrt(1 + distance)
 
         # Sort to have the column with the biggest score first
         columns.sort(key=lambda x: x.score, reverse=True)

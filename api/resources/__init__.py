@@ -1,1 +1,1 @@
-from .resources import Search
+from .resources import Search, BetaSearch

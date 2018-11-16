@@ -12,6 +12,14 @@ owner = 'ICSF'
 query = Query(owner, database)
 query.load()
 
+class BetaSearch(Resource):
+    @staticmethod
+    def get(resource_type, column_name):
+        """Return columns which have the desired resource type"""
+
+        columns = query.find(resource_type, column_name=column_name)
+
+        return columns
 
 class Search(Resource):
     """

@@ -14,6 +14,7 @@ class Discovery:
         self.owner = owner
         self.sql_params = sql.get_sql_config('prod_database')
         self.id_like_columns_tables = {}
+        self.exclude_columns = ['id', 'row_id']
 
     @staticmethod
     def is_id_like_column(column):
@@ -48,7 +49,8 @@ class Discovery:
         table_rows = sql.get_table(table, connection)
         columns = table_rows.T
         for column_name, column_type, column in zip(column_names, column_types, columns):
-            if self.is_id_like_column(column):
+            # Column should be "like" a primary key or id column, but not in some forbidden columns
+            if self.is_id_like_column(column) and column_name not in self.exclude_columns:
                 id_like_columns.append((column_name, column_type))
 
         self.id_like_columns_tables[table] = id_like_columns
@@ -58,6 +60,8 @@ class Discovery:
         """
         State whether right_table could be join with left_table on left_table.id_column
         """
+        include_threshold = 0.5
+
         right_columns = self.find_id_like_columns(right_table, connection)
 
         left_len = sql.get_length(left_table, connection)
@@ -70,10 +74,17 @@ class Discovery:
             if column_type == join_datatype:
                 right_column_data = sql.get_column(right_table, right_column, connection)
 
+                n_included_el = 0
                 for left_el in left_column_data:
                     if left_el in right_column_data:
-                        acceptable_right_columns.append(right_column)
-                        break
+                        n_included_el += 1
+                        include_ratio = n_included_el / len(left_column_data)
+                        if include_ratio >= include_threshold:
+                            break
+
+                include_ratio = n_included_el / len(left_column_data)
+                if include_ratio >= include_threshold:
+                    acceptable_right_columns.append(right_column)
 
         return acceptable_right_columns
 

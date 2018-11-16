@@ -1,10 +1,10 @@
-import os
 import datetime
 import random
 
 import numpy as np
 import psycopg2
-import yaml
+
+from engine.config import Config
 
 
 def cache(request):
@@ -36,16 +36,10 @@ def cache(request):
 
 
 def get_sql_config(database='training_database'):
-    path = os.path.dirname(__file__)
-    filename = '../config.yml'
-    with open(os.path.join(path, filename)) as config_file:
-        config = yaml.safe_load(config_file)['sql']
-        if database not in config:
-            raise AttributeError(
-                'The database {} is not configured for the engine. '
-                'Did you meant {}?'.format(database, ', '.join(list(config.keys()))))
-        config = config[database]
-        return config
+    config = Config('sql')
+    if not hasattr(config, database):
+        raise AttributeError('The database {} is not configured for the engine.'.format(database))
+    return getattr(config, database).to_dict()
 
 
 def run(queries, connection=None):

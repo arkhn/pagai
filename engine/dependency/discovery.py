@@ -4,8 +4,8 @@ import time
 import psycopg2
 
 from engine.loader import sql
-
-from engine.structure import Graph, Table
+from engine.structure import Graph
+from engine.config import Config
 
 
 class Discovery:
@@ -15,9 +15,9 @@ class Discovery:
         self.sql_params = sql.get_sql_config('prod_database')
         self.id_like_columns_tables = {}
         self.exclude_columns = ['id', 'row_id']
+        self.config = Config('graph')
 
-    @staticmethod
-    def is_id_like_column(column):
+    def is_id_like_column(self, column):
         id_like = False
         if all(isinstance(el, int) for el in column):
             if not all(el in [0, 1] for el in set(column)):
@@ -25,7 +25,7 @@ class Discovery:
         elif all(isinstance(el, str) for el in column):
             if all(re.search(r'^\w+$', el) is not None for el in column):
                 unique_values = list(set(column))
-                if len(unique_values) < 40:  # TODO: what value?
+                if len(unique_values) < self.config.str_id_max_unique_values:
                     id_like = True
 
         return id_like
@@ -60,12 +60,9 @@ class Discovery:
         """
         State whether right_table could be join with left_table on left_table.id_column
         """
-        include_threshold = 0.5
+        include_threshold = self.config.include_threshold
 
         right_columns = self.find_id_like_columns(right_table, connection)
-
-        left_len = sql.get_length(left_table, connection)
-        right_len = sql.get_length(right_table, connection)
 
         left_column_data = sql.get_column(left_table, left_column, connection)
 

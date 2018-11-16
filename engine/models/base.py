@@ -1,5 +1,4 @@
-from engine import loader
-import operator
+from engine.config import Config
 
 
 class BaseClassifier:
@@ -9,6 +8,7 @@ class BaseClassifier:
     """
     def __init__(self):
         self.classification = None
+        self.config = Config('model')
 
     def find_all(self, resource_type, max_col_len=20):
         if self.classification is None:
@@ -16,7 +16,7 @@ class BaseClassifier:
         results = []
         for column in self.classification:
             column.score = column.proba_classes[resource_type]
-            if column.score > 0.1:
+            if column.score > self.config.min_score:
                 column.data = column.data[:max_col_len]
                 results.append(column)
 

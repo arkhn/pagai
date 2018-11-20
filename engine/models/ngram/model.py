@@ -29,6 +29,7 @@ class NGramClassifier(BaseClassifier):
             'n_gram_vectorizer': self.n_gram_vectorizer,
             'clf': self.clf,
             'classification': self.classification,
+            'config': self.config,
         }
         return state
 
@@ -45,6 +46,7 @@ class NGramClassifier(BaseClassifier):
                 ngram_range=self.ngram_range
         )
         self.classification = state['classification']
+        self.config = state['config']
 
     def preprocess(self, columns, labels, test_only=False):
         """

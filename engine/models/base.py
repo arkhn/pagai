@@ -1,3 +1,5 @@
+import logging
+
 from engine.config import Config
 
 
@@ -15,7 +17,11 @@ class BaseClassifier:
             raise TypeError('Model is not ready for live classification.')
         results = []
         for column in self.classification:
-            column.score = column.proba_classes[resource_type]
+            if resource_type in column.proba_classes:
+                column.score = column.proba_classes[resource_type]
+            else:
+                column.score = 1
+                logging.warning('No ResourceType was provided')
             if column.score > self.config.min_score:
                 column.data = column.data[:max_col_len]
                 results.append(column)

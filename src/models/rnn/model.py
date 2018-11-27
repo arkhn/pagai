@@ -54,14 +54,23 @@ class RNNClassifier(nn.Module):
         else:
             return X_sets
 
-    def fit(self, X_train, y_train, n_iter=100000, verbose=True, print_every=5000, plot_every=500):
+    def fit(
+        self,
+        X_train,
+        y_train,
+        n_iter=100000,
+        verbose=True,
+        print_every=5000,
+        plot_every=500,
+    ):
 
         for i, label in enumerate(y_train):
             self.category_lines[label] = []
 
         for i, label in enumerate(y_train):
             self.category_lines[label] += list(
-                filter(None, [unicodeToAscii(x.lower()) for x in X_train[i][1]]))
+                filter(None, [unicodeToAscii(x.lower()) for x in X_train[i][1]])
+            )
 
         max_seq_lengths = []
         for i, label in enumerate(y_train):
@@ -78,16 +87,28 @@ class RNNClassifier(nn.Module):
         start = time.time()
 
         for iter in range(1, n_iter + 1):
-            category, line, category_tensor, line_tensor = self.random_training_example()
+            category, line, category_tensor, line_tensor = (
+                self.random_training_example()
+            )
             output, loss = self.train(category_tensor, line_tensor)
             current_loss += loss
 
             # Print iter number, loss, name and guess
             if (verbose == True) and (iter % print_every == 0):
                 guess, guess_i = self.category_from_output(output)
-                correct = '✓' if guess == category else '✗ (%s)' % category
-                print('%d %d%% (%s) %.4f %s / %s %s' % (
-                iter, iter / n_iter * 100, timeSince(start), loss, line, guess, correct))
+                correct = "✓" if guess == category else "✗ (%s)" % category
+                print(
+                    "%d %d%% (%s) %.4f %s / %s %s"
+                    % (
+                        iter,
+                        iter / n_iter * 100,
+                        timeSince(start),
+                        loss,
+                        line,
+                        guess,
+                        correct,
+                    )
+                )
 
             # Add current loss avg to list of losses
             if iter % plot_every == 0:
@@ -111,7 +132,7 @@ class RNNClassifier(nn.Module):
 
         return output, loss.item()
 
-    def predict(self, X_test, sampling = 0.2):
+    def predict(self, X_test, sampling=0.2):
         y_pred = []
         for i in range(len(X_test)):
             y_pred.append(self.predict_column(X_test[i], sampling))
@@ -123,9 +144,12 @@ class RNNClassifier(nn.Module):
         for i in range(sample_length):
             try:
                 sample_prediction.append(
-                    self.predict_sample(randomChoice(column[1]), n_predictions=1, verbose=False)[0][1])
+                    self.predict_sample(
+                        randomChoice(column[1]), n_predictions=1, verbose=False
+                    )[0][1]
+                )
             except UnboundLocalError:
-                sample_prediction.append('UNKNOWN')
+                sample_prediction.append("UNKNOWN")
         return max(sample_prediction, key=sample_prediction.count)
 
     def predict_sample(self, input_line, n_predictions=1, verbose=True):
@@ -137,12 +161,12 @@ class RNNClassifier(nn.Module):
             predictions = []
 
             if verbose:
-                print('\n> %s' % input_line)
+                print("\n> %s" % input_line)
             for i in range(n_predictions):
                 value = topv[0][i].item()
                 category_index = topi[0][i].item()
                 if verbose:
-                    print('(%.2f) %s' % (value, self.all_categories[category_index]))
+                    print("(%.2f) %s" % (value, self.all_categories[category_index]))
                 predictions.append([value, self.all_categories[category_index]])
         return predictions
 
@@ -158,7 +182,9 @@ class RNNClassifier(nn.Module):
     def random_training_example(self):
         category = randomChoice(self.all_categories)
         line = randomChoice(self.category_lines[category])
-        category_tensor = torch.tensor([self.all_categories.index(category)], dtype=torch.long)
+        category_tensor = torch.tensor(
+            [self.all_categories.index(category)], dtype=torch.long
+        )
         line_tensor = lineToTensor(line)
         return category, line, category_tensor, line_tensor
 
@@ -174,27 +200,35 @@ class RNNClassifier(nn.Module):
         Utility function to build accuracy and false positive (FP) scores per class
         """
         good_pred = 0
-        label_acc = {label: {'TP': 0, 'NB': 0, 'FP': 0} for label in list(self.labels)}
+        label_acc = {label: {"TP": 0, "NB": 0, "FP": 0} for label in list(self.labels)}
         n_pred = len(y_pred)
         for pred, test in zip(y_pred, y_test):
             if pred == test:
                 good_pred += 1
-                label_acc[test]['TP'] += 1
+                label_acc[test]["TP"] += 1
             else:
-                label_acc[pred]['FP'] += 1
-            label_acc[test]['NB'] += 1
+                label_acc[pred]["FP"] += 1
+            label_acc[test]["NB"] += 1
             if pred not in label_acc:
                 print(pred)
 
         for label, scores in label_acc.items():
-            print('{}\t{}/{}\t   {}% \t(FP:{})'.format(
-                (label + ' ' * 20)[:20],
-                scores['TP'],
-                scores['NB'],
-                round(100 * scores['TP'] / scores['NB'], 2) if scores['NB'] != 0 else '-',
-                scores['FP']
-            ))
-        print('SCORE {}/{} :   {}%'.format(good_pred, n_pred, round(100 * good_pred / n_pred, 2)))
+            print(
+                "{}\t{}/{}\t   {}% \t(FP:{})".format(
+                    (label + " " * 20)[:20],
+                    scores["TP"],
+                    scores["NB"],
+                    round(100 * scores["TP"] / scores["NB"], 2)
+                    if scores["NB"] != 0
+                    else "-",
+                    scores["FP"],
+                )
+            )
+        print(
+            "SCORE {}/{} :   {}%".format(
+                good_pred, n_pred, round(100 * good_pred / n_pred, 2)
+            )
+        )
 
     def build_datasets(self, columns, labels, test_only):
         """

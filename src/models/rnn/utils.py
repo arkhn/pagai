@@ -6,15 +6,17 @@ import math
 import torch
 
 
-all_letters = string.ascii_lowercase + string.punctuation + string.digits + string.whitespace
+all_letters = (
+    string.ascii_lowercase + string.punctuation + string.digits + string.whitespace
+)
 n_letters = len(all_letters)
 
 
 def unicodeToAscii(s):
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', s)
-        if unicodedata.category(c) != 'Mn'
-        and c in all_letters
+    return "".join(
+        c
+        for c in unicodedata.normalize("NFD", s)
+        if unicodedata.category(c) != "Mn" and c in all_letters
     )
 
 
@@ -42,4 +44,4 @@ def timeSince(since):
     s = now - since
     m = math.floor(s / 60)
     s -= m * 60
-    return '%dm %ds' % (m, s)
+    return "%dm %ds" % (m, s)

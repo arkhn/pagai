@@ -15,7 +15,9 @@ class NGramClassifier(BaseClassifier):
         self.labels = []
         self.classification = None
         self.n_gram_vectorizer = None
-        self.clf = RandomForestClassifier(n_estimators=300, max_depth=50, max_features='sqrt', random_state=0)
+        self.clf = RandomForestClassifier(
+            n_estimators=300, max_depth=50, max_features="sqrt", random_state=0
+        )
 
     def __getstate__(self):
         """
@@ -24,11 +26,11 @@ class NGramClassifier(BaseClassifier):
         """
         self.n_gram_vectorizer.analyzer = None
         state = {
-            'labels': self.labels,
-            'ngram_range': self.ngram_range,
-            'n_gram_vectorizer': self.n_gram_vectorizer,
-            'clf': self.clf,
-            'classification': self.classification,
+            "labels": self.labels,
+            "ngram_range": self.ngram_range,
+            "n_gram_vectorizer": self.n_gram_vectorizer,
+            "clf": self.clf,
+            "classification": self.classification,
         }
         return state
 
@@ -37,14 +39,14 @@ class NGramClassifier(BaseClassifier):
         Utility method for pickle.load
         We need to rebuild the analyzer
         """
-        self.labels = state['labels']
-        self.n_gram_vectorizer = state['n_gram_vectorizer']
-        self.clf = state['clf']
-        self.ngram_range = state['ngram_range']
+        self.labels = state["labels"]
+        self.n_gram_vectorizer = state["n_gram_vectorizer"]
+        self.clf = state["clf"]
+        self.ngram_range = state["ngram_range"]
         self.n_gram_vectorizer.analyzer = NGramClassifier.call_find_ngrams(
-                ngram_range=self.ngram_range
+            ngram_range=self.ngram_range
         )
-        self.classification = state['classification']
+        self.classification = state["classification"]
 
     def preprocess(self, columns, labels, test_only=False):
         """
@@ -52,7 +54,7 @@ class NGramClassifier(BaseClassifier):
         """
         if not test_only:
             self.labels = labels
-        X_sets, reordered_columns =  self.build_datasets(columns, labels, test_only)
+        X_sets, reordered_columns = self.build_datasets(columns, labels, test_only)
         if test_only:
             return X_sets, reordered_columns
         else:
@@ -135,11 +137,11 @@ class NGramClassifier(BaseClassifier):
         # 1. len of the row
         n_char = np.vectorize(len)(dataset).mean()
         # 2. Nb of words
-        n_words = np.vectorize(lambda x: len(x.split(' ')))(dataset).mean()
+        n_words = np.vectorize(lambda x: len(x.split(" ")))(dataset).mean()
         # 3. Percentage of unique values / all values
         p_unique = len(np.unique(dataset)) / len(dataset)
 
-        stats = np.hstack((n_char-n_char, ))
+        stats = np.hstack((n_char - n_char,))
         return stats
 
     @staticmethod
@@ -185,23 +187,19 @@ class NGramClassifier(BaseClassifier):
             col_stat_features = row[1]
             ngram_vector = row[2]
 
-            item = np.hstack((
-                col_stat_features.reshape(1, -1),
-                ngram_vector.reshape(1, -1)
-            ))
+            item = np.hstack(
+                (col_stat_features.reshape(1, -1), ngram_vector.reshape(1, -1))
+            )
             X.append(item)
 
         return np.concatenate(X)
 
     def n_gram_fit_transform(self, X_train_col, y_train):
         self.n_gram_vectorizer = TfidfVectorizer(
-            analyzer=NGramClassifier.call_find_ngrams(
-                ngram_range=self.ngram_range
-            )
+            analyzer=NGramClassifier.call_find_ngrams(ngram_range=self.ngram_range)
         )
         X_train_col = self.apply_on_column_datasets(
-            X_train_col,
-            self.n_gram_vectorizer.fit_transform
+            X_train_col, self.n_gram_vectorizer.fit_transform
         )
 
         X_train = self.transform_to_matrix(X_train_col)
@@ -210,8 +208,7 @@ class NGramClassifier(BaseClassifier):
 
     def n_gram_transform(self, X_test_col):
         X_test_col = self.apply_on_column_datasets(
-            X_test_col,
-            self.n_gram_vectorizer.transform
+            X_test_col, self.n_gram_vectorizer.transform
         )
 
         X_test = self.transform_to_matrix(X_test_col)
@@ -256,32 +253,36 @@ class NGramClassifier(BaseClassifier):
             if isinstance(cell, str):
                 # Cell global preprocessing:
                 # * Rm end point
-                if cell[-1] == '.':
+                if cell[-1] == ".":
                     cell = cell[:-1]
 
                 all_grams = []
 
                 # If cell is a single character
                 if len(cell) == 1 and 1 not in ngram_range:
-                    unigram = '^{}$'.format(cell)
+                    unigram = "^{}$".format(cell)
                     all_grams.append(unigram)
 
                 # Then, loop on all kinds of n-gram
                 for n in ngram_range:
                     raw_n_grams = zip(*[cell[i:] for i in range(n)])
                     # Remove n_grams with invalid characters like spaces
-                    except_chars = [' ', '.', '?', '!']
-                    n_grams = [''.join(n_gram) for n_gram in raw_n_grams if notin(n_gram, except_chars)]
+                    except_chars = [" ", ".", "?", "!"]
+                    n_grams = [
+                        "".join(n_gram)
+                        for n_gram in raw_n_grams
+                        if notin(n_gram, except_chars)
+                    ]
                     # Replace some characters like numbers with generic masks
-                    n_grams = [re.sub('\d', '\d', n_gram) for n_gram in n_grams]
+                    n_grams = [re.sub("\d", "\d", n_gram) for n_gram in n_grams]
                     all_grams += n_grams
                 return all_grams
             else:
-                raise TypeError('Cell should be None, Nan or str but got', type(cell))
+                raise TypeError("Cell should be None, Nan or str but got", type(cell))
 
         return find_ngrams
 
-    def col_ngrams(self, col, ngram_range=(3, ), n_grams=None):
+    def col_ngrams(self, col, ngram_range=(3,), n_grams=None):
         """
         NOT USED AT THE MOMENT
         For a given column, for each element (called cell), find all ngrams and
@@ -290,6 +291,8 @@ class NGramClassifier(BaseClassifier):
         :param col: the given column
         :param ngram_range: parameters for the ngrams we use
         :param n_grams: the counter dictionary given as argument to have incremental behaviour within cols
+
+
         :return: the counter dictionary
         """
         find_ngrams = self.call_find_ngrams(ngram_range)
@@ -318,26 +321,34 @@ class NGramClassifier(BaseClassifier):
         Utility function to build accuracy and false positive (FP) scores per class
         """
         good_pred = 0
-        label_acc = {label: {'TP': 0, 'NB': 0, 'FP': 0} for label in list(self.labels)}
+        label_acc = {label: {"TP": 0, "NB": 0, "FP": 0} for label in list(self.labels)}
         n_pred = len(y_pred)
         for pred, test in zip(y_pred, y_test):
             pred_label = self.pred2label(pred)
             test_label = self.pred2label(test)
             if pred == test:
                 good_pred += 1
-                label_acc[test_label]['TP'] += 1
+                label_acc[test_label]["TP"] += 1
             else:
-                label_acc[pred_label]['FP'] += 1
-            label_acc[test_label]['NB'] += 1
+                label_acc[pred_label]["FP"] += 1
+            label_acc[test_label]["NB"] += 1
             if pred_label not in label_acc:
                 print(pred)
 
         for label, scores in label_acc.items():
-            print('{}\t{}/{}\t   {}% \t(FP:{})'.format(
-                (label + ' ' * 20)[:20],
-                scores['TP'],
-                scores['NB'],
-                round(100 * scores['TP'] / scores['NB'], 2) if scores['NB'] != 0 else '-',
-                scores['FP']
-            ))
-        print('SCORE {}/{} :   {}%'.format(good_pred, n_pred, round(100 * good_pred / n_pred, 2)))
+            print(
+                "{}\t{}/{}\t   {}% \t(FP:{})".format(
+                    (label + " " * 20)[:20],
+                    scores["TP"],
+                    scores["NB"],
+                    round(100 * scores["TP"] / scores["NB"], 2)
+                    if scores["NB"] != 0
+                    else "-",
+                    scores["FP"],
+                )
+            )
+        print(
+            "SCORE {}/{} :   {}%".format(
+                good_pred, n_pred, round(100 * good_pred / n_pred, 2)
+            )
+        )

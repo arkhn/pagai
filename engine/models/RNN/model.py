@@ -26,23 +26,23 @@ class RNNClassifier:
             X_matrix[i, : sequence_i.shape[0], :] = sequence_i
         return X_matrix
 
-    def buil_model(use_dropout=True, hidden_size=50, dropout=0.5):
+    def buil_model(self, use_dropout=True, hidden_size=50, dropout=0.5):
         model = Sequential()
         # batch size, number of time steps, hidden size)
-        model.add(Embedding(self.vocab_size, hidden_size=hidden_size, input_length=max_len_sequence))
+        model.add(Embedding(input_dim=self.vocab_size, output_dim=hidden_size, input_length=self.max_len_sequence))
         model.add(LSTM(hidden_size, return_sequences=False))
         #model.add(LSTM(hidden_size, return_sequences=True))
         if use_dropout:
             model.add(Dropout(dropout))
         #model.add(TimeDistributed(Dense(self.vocab_size)))
-        model.add(Activation(self.num_classes, activation='softmax'))
+        model.add(Dense(self.num_classes, activation='softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['categorical_accuracy'])
         #model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
         print(model.summary())
         self.model = model
 
-    def fit(self, X_train, Y_train, epochs=500, batch):
-        sel.model.fit(X_train,Y_train, epochs=500, batch_size=10)
+    def fit(self, X_train, Y_train, epochs=500, batch_size=10):
+        self.model.fit(X_train,Y_train, epochs=epochs, batch_size=batch_size)
   
     def predict(self, X_test):
         return self.model.predict(X_test)

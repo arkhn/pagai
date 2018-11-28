@@ -12,7 +12,6 @@ owner = 'ICSF'
 query = Query(owner, database)
 query.load()
 
-
 class BetaSearch(Resource):
     @staticmethod
     def get(resource_type='all', head_table=None, column_name=None):
@@ -22,7 +21,7 @@ class BetaSearch(Resource):
 
         return columns
 
-
+      
 class Search(Resource):
     """
     Handle search calls by resource_type, keywords, etc.
@@ -33,7 +32,6 @@ class Search(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('resource_type', required=False, type=str)
         parser.add_argument('owner', required=True, type=str)
-
         args = parser.parse_args()
 
     @staticmethod

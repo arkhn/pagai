@@ -1,5 +1,6 @@
 from engine.structure.table import Table
 
+
 class Graph:
     def __init__(self):
         self.table_dict = {}

@@ -12,10 +12,10 @@ class Discovery:
     def __init__(self, database, owner):
         self.database = database
         self.owner = owner
-        self.sql_params = sql.get_sql_config('prod_database')
+        self.sql_params = sql.get_sql_config("prod_database")
         self.id_like_columns_tables = {}
-        self.exclude_columns = ['id', 'row_id']
-        self.config = Config('graph')
+        self.exclude_columns = ["id", "row_id"]
+        self.config = Config("graph")
 
     def is_id_like_column(self, column):
         id_like = False
@@ -23,7 +23,7 @@ class Discovery:
             if not all(el in [0, 1] for el in set(column)):
                 id_like = True
         elif all(isinstance(el, str) for el in column):
-            if all(re.search(r'^\w+$', el) is not None for el in column):
+            if all(re.search(r"^\w+$", el) is not None for el in column):
                 unique_values = list(set(column))
                 if len(unique_values) < self.config.str_id_max_unique_values:
                     id_like = True
@@ -48,15 +48,22 @@ class Discovery:
 
         table_rows = sql.get_table(table, connection)
         columns = table_rows.T
-        for column_name, column_type, column in zip(column_names, column_types, columns):
+        for column_name, column_type, column in zip(
+            column_names, column_types, columns
+        ):
             # Column should be "like" a primary key or id column, but not in some forbidden columns
-            if self.is_id_like_column(column) and column_name not in self.exclude_columns:
+            if (
+                self.is_id_like_column(column)
+                and column_name not in self.exclude_columns
+            ):
                 id_like_columns.append((column_name, column_type))
 
         self.id_like_columns_tables[table] = id_like_columns
         return id_like_columns
 
-    def table_compatibility(self, left_table, left_column, right_table, join_datatype, connection):
+    def table_compatibility(
+        self, left_table, left_column, right_table, join_datatype, connection
+    ):
         """
         State whether right_table could be join with left_table on left_table.id_column
         """
@@ -69,7 +76,9 @@ class Discovery:
         acceptable_right_columns = []
         for right_column, column_type in right_columns:
             if column_type == join_datatype:
-                right_column_data = sql.get_column(right_table, right_column, connection)
+                right_column_data = sql.get_column(
+                    right_table, right_column, connection
+                )
 
                 n_included_el = 0
                 for left_el in left_column_data:
@@ -93,7 +102,9 @@ class Discovery:
         tables = [t for t in sql.get_tables(connection) if t != table]
         for right_table in tables:
             # print('\t{}'.format(right_table))
-            acceptable_right_columns = self.table_compatibility(table, id_column, right_table, id_column_type, connection)
+            acceptable_right_columns = self.table_compatibility(
+                table, id_column, right_table, id_column_type, connection
+            )
             if len(acceptable_right_columns) > 0:
                 compatible_tables.append((right_table, acceptable_right_columns))
 
@@ -104,13 +115,15 @@ class Discovery:
         Return the names of the table which could be in a join with the given table
         """
         id_columns = self.find_id_like_columns(table, connection)
-        print([id_column for id_column, id_column_type in id_columns])
+        # print([id_column for id_column, id_column_type in id_columns])
         joinable_tables = {}
 
         for id_column, id_column_type in id_columns:
-            print('#COL_ID ', id_column)
-            print(list(sql.get_column(table, id_column, connection))[:10])
-            compatible_tables = self.find_compatible_tables(table, id_column, id_column_type, connection)
+            # print('#COL_ID ', id_column)
+            # print(list(sql.get_column(table, id_column, connection))[:10])
+            compatible_tables = self.find_compatible_tables(
+                table, id_column, id_column_type, connection
+            )
             if len(compatible_tables) > 0:
                 joinable_tables[id_column] = compatible_tables
 
@@ -126,7 +139,7 @@ class Discovery:
 
             start_time = time.time()
             for table in tables:
-                print('*********************  {}   {}\n'.format(table, time.time() - start_time))
+                # print('*********************  {}   {}\n'.format(table, time.time() - start_time))
                 joinable_tables = self.find_joinable_tables(table, connection)
 
                 for id_column, join_data in joinable_tables.items():
@@ -139,9 +152,4 @@ class Discovery:
 
     @staticmethod
     def table_id(owner, table):
-        return '{}:{}'.format(owner, table)
-
-
-
-
-
+        return "{}:{}".format(owner, table)

@@ -1,5 +1,6 @@
 import jellyfish
 
+
 class Column:
     def __init__(self, table, column, data=None, score=0):
         self.table = table
@@ -12,7 +13,7 @@ class Column:
         self.proba_classes = proba_classes
 
     def match_name_score(self, query):
-        corpus = [self.table, self.column] + self.column.split('.')
+        corpus = [self.table, self.column] + self.column.split(".")
         score = 10e10
         for word in corpus:
             distance = jellyfish.damerau_levenshtein_distance(word, query)
@@ -34,9 +35,9 @@ class Column:
             }
         """
         data_dct = {
-            'table': self.table,
-            'column': self.column,
-            'data': self.data,
-            'score': self.score
+            "table": self.table,
+            "column": self.column,
+            "data": self.data,
+            "score": self.score,
         }
         return data_dct

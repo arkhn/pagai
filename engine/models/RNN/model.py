@@ -53,3 +53,23 @@ class RNNClassifier:
     def predict(self, X_test):
         X_test = self.str_to_matrix(X_test)
         return self.model.predict(X_test)
+    
+    
+    
+#x_train = ['fdgdgdg', 'aeaehjfs', 'ijfkdfjkd+', 'fdgvMGKKG']
+#y_train = [1,2,4,3]
+
+# encode class values as integers
+#encoder = LabelEncoder()
+#encoder.fit(y_train)
+#encoded_y_train = encoder.transform(y_train)
+# convert integers to dummy variables (i.e. one hot encoded)
+#dummy_y = to_categorical(encoded_y_train)
+#y_train = dummy_y
+
+
+#rnn = RNNClassifier(5, 4, {1:'A', 2:'B', 3:'C', 4:'D'}, 'lstm')
+#rnn.built_dict_character(x_train)
+#rnn.buil_model()
+#rnn.fit(x_train, y_train)
+#rnn.model.predict(rnn.str_to_matrix(x_test))

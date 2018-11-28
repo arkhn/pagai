@@ -26,7 +26,7 @@ class RNNClassifier:
             X_matrix[i, : sequence_i.shape[0], :] = sequence_i
         return X_matrix
 
-    def buil_model(use_dropout=True, hidden_size=10, dropout=0.5):
+    def buil_model(use_dropout=True, hidden_size=50, dropout=0.5):
         model = Sequential()
         # batch size, number of time steps, hidden size)
         model.add(Embedding(self.vocab_size, hidden_size=hidden_size, input_length=max_len_sequence))
@@ -34,18 +34,15 @@ class RNNClassifier:
         #model.add(LSTM(hidden_size, return_sequences=True))
         if use_dropout:
             model.add(Dropout(dropout))
-        model.add(TimeDistributed(Dense(self.vocab_size)))
-        model.add(Activation('softmax'))
+        #model.add(TimeDistributed(Dense(self.vocab_size)))
+        model.add(Activation(self.num_classes, activation='softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['categorical_accuracy'])
         #model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
         print(model.summary())
         self.model = model
 
-    def fit(self, X_train, Y_train):
-        checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
-        model.fit_generator(train_data_generator.generate(), len(train_data)//(batch_size*num_steps), num_epochs,
-                        validation_data=valid_data_generator.generate(),
-                        validation_steps=len(valid_data)//(batch_size*num_steps), callbacks=[checkpointer])
-        #model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=3, batch_size=64)
+    def fit(self, X_train, Y_train, epochs=500, batch):
+        sel.model.fit(X_train,Y_train, epochs=500, batch_size=10)
+  
     def predict(self, X_test):
         return self.model.predict(X_test)

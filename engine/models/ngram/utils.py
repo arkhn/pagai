@@ -4,8 +4,7 @@ import numpy as np
 
 
 def isnan(el):
-    return el is None or el == '' \
-           or isinstance(el, float) and math.isnan(el)
+    return el is None or el == "" or isinstance(el, float) and math.isnan(el)
 
 
 def notin(list_chars, except_chars):

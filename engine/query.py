@@ -7,7 +7,8 @@ import numpy as np
 from engine.dependency import Discovery as Discovery
 from engine import models
 
-SAVE_PATH_FILE = 'build/query.pickle'
+SAVE_PATH = "build/"
+
 
 class Query:
     def __init__(self, database, owner):
@@ -15,6 +16,7 @@ class Query:
         self.owner = owner
         self.dependency_graph = None
         self.model = None
+        self.models = {}
 
     def find(self, resource_type, parent_table=None, column_name=None, max_results=10):
         """
@@ -29,7 +31,9 @@ class Query:
         # If a parent table is provided, down vote the tables that are "far" from the parent table
         if parent_table is not None:
             for column in columns:
-                distance = self.dependency_graph.get_distance(parent_table, column.table)
+                distance = self.dependency_graph.get_distance(
+                    parent_table, column.table
+                )
                 column.score *= 2 ** (-distance)
 
         # If column_name is provided, up vote columns that fit with it
@@ -47,31 +51,39 @@ class Query:
 
         return self.api_response(columns)
 
-    def load(self, force_retrain=False):
+    def load(self, model_selected="ngram", force_retrain=False):
         database, owner = self.database, self.owner
-        query_pickle = Path(SAVE_PATH_FILE)
+        query_path = f"{SAVE_PATH}query.pickle"
+        query_pickle = Path(query_path)
         if query_pickle.is_file() and not force_retrain:
-            logging.warning('Model ready!')
-            with open(SAVE_PATH_FILE, 'rb') as pickle_file:
+            logging.warning("Model ready!")
+            with open(query_path, "rb") as pickle_file:
                 query = pickle.load(pickle_file)
                 self.dependency_graph = query.dependency_graph
-                self.model = query.model
+                self.models = query.models
+                self.model = query.models[model_selected]
                 return self
         else:
-            logging.warning('Training model...')
+            logging.warning("We're building the engine...")
             # Load the discovery module to build the dependency graph
             discovery = Discovery(database, owner)
+            logging.warning("Building the dependency graph...")
             dependency_graph = discovery.build_dependency_graph()
 
-            # Load and train the model
-            model = models.train.train(owner, database, 'ngram')
+            # Load and train the models
+            model_types = ["ngram", "rnn"]
+            for model_type in model_types:
+                logging.warning(f"Training the {model_type} model...")
+                model = models.train.train(owner, database, model_type)
+                self.models[model_type] = model
+                if model_type == model_selected:
+                    self.model = model
 
-            self.model = model
             self.dependency_graph = dependency_graph
 
-            if not os.path.exists(os.path.dirname(SAVE_PATH_FILE)):
-                os.makedirs(os.path.dirname(SAVE_PATH_FILE))
-            with open(SAVE_PATH_FILE, 'wb') as file:
+            if not os.path.exists(os.path.dirname(query_path)):
+                os.makedirs(os.path.dirname(query_path))
+            with open(query_path, "wb") as file:
                 pickle.dump(self, file)
 
             return self
@@ -82,4 +94,3 @@ class Query:
         for res in results:
             response.append(res.ser())
         return response
-

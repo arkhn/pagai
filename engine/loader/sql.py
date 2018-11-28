@@ -23,7 +23,11 @@ def cache(request):
                 sql_args.append(arg)
 
         # Build identifier based on args and kwargs
-        identifier = ';'.join(map(str, sql_args)) + '#' + ';'.join(['{}:{}'.format(k, v) for k, v in kwargs.items()])
+        identifier = (
+            ";".join(map(str, sql_args))
+            + "#"
+            + ";".join(["{}:{}".format(k, v) for k, v in kwargs.items()])
+        )
 
         # Search storage based on identifier
         if identifier not in storage:
@@ -35,10 +39,12 @@ def cache(request):
     return store
 
 
-def get_sql_config(database='training_database'):
-    config = Config('sql')
+def get_sql_config(database="training_database"):
+    config = Config("sql")
     if not hasattr(config, database):
-        raise AttributeError('The database {} is not configured for the engine.'.format(database))
+        raise AttributeError(
+            "The database {} is not configured for the engine.".format(database)
+        )
     return getattr(config, database).to_dict()
 
 
@@ -47,7 +53,7 @@ def run(queries, connection=None):
     Execute queries and can create a sql connection if needed
     """
     if connection is None:
-        sql_params = get_sql_config('training_database')
+        sql_params = get_sql_config("training_database")
         with psycopg2.connect(**sql_params) as connection:
             results = execute(queries, connection)
 
@@ -88,9 +94,11 @@ def get_tables(connection=None):
     """
     Return all table names in the active db
     """
-    query = "select table_name " \
-            "from information_schema.tables " \
-            "where table_schema = 'public';"
+    query = (
+        "select table_name "
+        "from information_schema.tables "
+        "where table_schema = 'public';"
+    )
 
     result = run(query, connection)
     tables = np.array(result).T[0]
@@ -102,7 +110,7 @@ def get_table(table, connection=None, limit=1000):
     """
     Return content of a table with a limit
     """
-    query = 'SELECT * FROM {} ORDER BY RANDOM() LIMIT {};'.format(table, limit)
+    query = "SELECT * FROM {} ORDER BY RANDOM() LIMIT {};".format(table, limit)
     results = run(query, connection)
     results = np.array(results)
     return results
@@ -113,12 +121,14 @@ def get_columns(table, connection=None, include_data_type=False):
     """
     Return column names of a table
     """
-    info = ['column_name']
+    info = ["column_name"]
     if include_data_type:
-        info.append('data_type')
-    query = "SELECT {} " \
-            "FROM information_schema.columns " \
-            "WHERE table_name='{}';".format(', '.join(info), table)
+        info.append("data_type")
+    query = (
+        "SELECT {} "
+        "FROM information_schema.columns "
+        "WHERE table_name='{}';".format(", ".join(info), table)
+    )
     result = run(query, connection)
     if include_data_type:
         columns = result
@@ -135,9 +145,11 @@ def get_column(table, column, connection=None):
     """
     table_len = get_length(table, connection)
     limit = max(5000, round(table_len ** (2 / 3)))
-    query = "SELECT {} " \
-            "FROM {} " \
-            "ORDER BY RANDOM() LIMIT {}".format(column, table, limit)
+    query = (
+        "SELECT {} "
+        "FROM {} "
+        "ORDER BY RANDOM() LIMIT {}".format(column, table, limit)
+    )
     results = run(query, connection)
     results = set([res[0] for res in results])
 
@@ -148,9 +160,11 @@ def has_frequency(table, connection=None):
     """
     Check if there is a column frequency, which will act as a weight for sampling
     """
-    query = "SELECT column_name " \
-            "FROM information_schema.columns " \
-            "WHERE table_name='{}' and column_name='{}';".format(table, 'frequency')
+    query = (
+        "SELECT column_name "
+        "FROM information_schema.columns "
+        "WHERE table_name='{}' and column_name='{}';".format(table, "frequency")
+    )
     result = run(query, connection)
     return len(result) > 0
 
@@ -160,7 +174,7 @@ def fetch_columns(column_names, dataset_size, load_bar=None):
     Given a spec in column_names, and a dataset_size,
     return extracted columns that will be used for training
     """
-    sql_params = get_sql_config('training_database')
+    sql_params = get_sql_config("training_database")
     with psycopg2.connect(**sql_params) as connection:
         # Put arg in a list if it is not the case
         if isinstance(column_names, (str, tuple)):
@@ -171,23 +185,23 @@ def fetch_columns(column_names, dataset_size, load_bar=None):
         for column_name in column_names:
             column_name, nb_datasets = column_name
 
-            table, column = column_name.split('.')
+            table, column = column_name.split(".")
 
             n_rows = get_length(table, connection)
 
             # If there is a weight for sampling, use log log to have frequent but various rows
             weighted_sampling = has_frequency(table, connection)
-            order_limit = 'ORDER BY '
+            order_limit = "ORDER BY "
             if weighted_sampling:
-                order_limit += 'LOG(LOG(frequency+2)) * RANDOM() DESC '
+                order_limit += "LOG(LOG(frequency+2)) * RANDOM() DESC "
             else:
-                order_limit += 'RANDOM() '
+                order_limit += "RANDOM() "
 
             # Add limit (note that we multiply with nb_datasets)
-            order_limit += 'LIMIT {}'.format(dataset_size * nb_datasets)
+            order_limit += "LIMIT {}".format(dataset_size * nb_datasets)
 
             # Assemble SQL query
-            query = 'SELECT {} FROM {} {};'.format(column, table, order_limit)
+            query = "SELECT {} FROM {} {};".format(column, table, order_limit)
 
             # Run SQL to get samples of the database
             sampled_rows = run(query, connection)
@@ -202,7 +216,7 @@ def fetch_columns(column_names, dataset_size, load_bar=None):
             # Post-process: convert to str if needed
             for i, row in enumerate(sampled_rows):
                 if row is None:
-                    sampled_rows[i] = ''
+                    sampled_rows[i] = ""
                 elif isinstance(row, str):
                     pass
                 elif isinstance(row, (int, float)):
@@ -210,16 +224,22 @@ def fetch_columns(column_names, dataset_size, load_bar=None):
                 elif isinstance(row, datetime.date):
                     sampled_rows[i] = row.isoformat()
                 else:
-                    raise TypeError('Format of row is not supported', type(row), row)
+                    raise TypeError("Format of row is not supported", type(row), row)
 
             # Choose table rows ids with a uniform sampling with replacement strategy
-            datasets_virtual_ids = np.random.randint(0, n_rows, (nb_datasets, dataset_size))
+            datasets_virtual_ids = np.random.randint(
+                0, n_rows, (nb_datasets, dataset_size)
+            )
 
             # List all unique ids selected
-            virtual_unique_ids = list(set(datasets_virtual_ids.reshape(1,-1)[0].tolist()))
+            virtual_unique_ids = list(
+                set(datasets_virtual_ids.reshape(1, -1)[0].tolist())
+            )
 
             # Map ids to real row indices of sampled_rows
-            virtual_sampled_mapping = {v_id: s_id for s_id, v_id in enumerate(virtual_unique_ids)}
+            virtual_sampled_mapping = {
+                v_id: s_id for s_id, v_id in enumerate(virtual_unique_ids)
+            }
             mapper = lambda x: virtual_sampled_mapping[x]
 
             for i in range(nb_datasets):

@@ -6,10 +6,10 @@ class Table:
     def __str__(self):
         display = [str(self.name)]
         for table in self.adjacent:
-            display.append('\t' + table.name)
+            display.append("\t" + table.name)
             for join in self.adjacent[table]:
-                display.append('\t\t' + '='.join(join))
-        return '\n'.join(display)
+                display.append("\t\t" + "=".join(join))
+        return "\n".join(display)
 
     def add_join(self, table, join_info):
         if table not in self.adjacent:

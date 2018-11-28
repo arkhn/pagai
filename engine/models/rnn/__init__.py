@@ -1,2 +1,2 @@
-from src.models.rnn.model import RNN
-from src.models.rnn.model import RNNClassifier
+from engine.models.rnn.model import RNN
+from engine.models.rnn.model import RNNClassifier

@@ -3,7 +3,7 @@ import logging
 import psycopg2
 
 from engine import loader
-from engine.models import ngram
+from engine.models import ngram, rnn
 from engine.structure import Column
 
 # This is the training set, also used for testing and giving a score estimate
@@ -14,32 +14,26 @@ from engine.structure import Column
 # sampled by replacement.
 
 source = [
-    ('firstname', 'firstnames.firstname', 100),
-
-    ('name', 'names.name', 100),
-
-    ('code', 'patients.gender', 10),
-    ('code', 'admissions.marital_status', 10),
-    ('code', 'admissions.religion', 10),
-    ('code', 'admissions.insurance', 10),
-    ('code', 'admissions.admission_location', 10),
-    ('code', 'prescriptions.drug_type', 30),
-    ('code', 'prescriptions.dose_unit_rx', 20),
-
-    ('date', 'prescriptions.startdate', 90),
-    ('date', 'admissions.admittime', 10),
-
-    ('id', 'admissions.hadm_id', 10),
-    ('id', 'admissions.subject_id', 10),
-    ('id', 'prescriptions.subject_id', 80),
-
-    ('address', 'addresses.road', 100),
-
-    ('city', 'addresses.city', 100)
+    ("firstname", "firstnames.firstname", 100),
+    ("name", "names.name", 100),
+    ("code", "patients.gender", 10),
+    ("code", "admissions.marital_status", 10),
+    ("code", "admissions.religion", 10),
+    ("code", "admissions.insurance", 10),
+    ("code", "admissions.admission_location", 10),
+    ("code", "prescriptions.drug_type", 30),
+    ("code", "prescriptions.dose_unit_rx", 20),
+    ("date", "prescriptions.startdate", 90),
+    ("date", "admissions.admittime", 10),
+    ("id", "admissions.hadm_id", 10),
+    ("id", "admissions.subject_id", 10),
+    ("id", "prescriptions.subject_id", 80),
+    ("address", "addresses.road", 100),
+    ("city", "addresses.city", 100),
 ]
 
 
-def train(owner, database, model='ngram'):
+def train(owner, database, model_type="ngram"):
     """
     Train a classification model on some dataset, and create a classification
     tool for columns of a given database, which will be used by the search
@@ -49,40 +43,41 @@ def train(owner, database, model='ngram'):
     :param model: which model to use
     :return: the model train, with classification performed.
     """
-    assert model == 'ngram'
 
     datasets, labels = spec_from_source(source)
 
-    logging.warning('Fetching data...')
+    logging.warning("Fetching data...")
     columns = loader.fetch_columns(datasets, dataset_size=100)
 
-    model = ngram.NGramClassifier()
-    logging.warning('Preprocessing data...')
+    models = {"ngram": ngram.NGramClassifier, "rnn": rnn.RNNClassifier}
+    model = models[model_type]()
+
+    logging.warning("Preprocessing data...")
     X_train, y_train, X_test, y_test = model.preprocess(columns, labels)
 
-    logging.warning('Fitting model...')
-    model.fit(X_train, y_train, ngram_range=(2, 3))
+    logging.warning("Fitting model...")
+    model.fit(X_train, y_train)
 
     # Just to have an overview of the model performance on the training DB
-    logging.warning('Score information:')
+    logging.warning("Score information:")
     y_pred = model.predict(X_test)
     model.score(y_pred, y_test)
 
-    logging.warning('Building classification...')
+    logging.warning("Building classification...")
     # Create connection to the `prod` database, on which we use the search engine
-    sql_params = loader.get_sql_config('prod_database')
+    sql_params = loader.get_sql_config("prod_database")
     with psycopg2.connect(**sql_params) as connection:
         # Get all tables
         prod_tables = loader.get_tables(connection)
         prod_table_columns = [
-            '{}.{}'.format(table, column)
+            "{}.{}".format(table, column)
             for table in prod_tables
             for column in loader.get_columns(table, connection)
         ]
         # Format to fit the transform and predict model pipeline
         # TODO: have a specific canal
         prod_source = [
-            ('unknown', table_column, 1) for table_column in prod_table_columns
+            ("unknown", table_column, 1) for table_column in prod_table_columns
         ]
         prod_datasets, _labels = spec_from_source(prod_source)
         columns = loader.fetch_columns(prod_datasets, dataset_size=100)
@@ -94,15 +89,15 @@ def train(owner, database, model='ngram'):
         classification = []
         for column, pred_proba in zip(columns, y_pred):
             column_name, column_data = column
-            table_name = column_name.split('.')[0]
+            table_name = column_name.split(".")[0]
             column = Column(table_name, column_name, data=column_data)
-            labels = [model.pred2label(input) for input in model.clf.classes_]
+            labels = [model.pred2label(input) for input in model.classes]
             proba_classes = {l: p for l, p in zip(labels, pred_proba)}
             column.set_proba_classes(proba_classes)
             classification.append(column)
         model.classification = classification
 
-    logging.warning('Done. Ready!')
+    logging.warning("Done. Ready!")
     return model
 
 

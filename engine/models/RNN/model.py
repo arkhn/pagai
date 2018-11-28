@@ -1,8 +1,11 @@
-
 # Example of LSTM to learn a sequence
 from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import LSTM
+from keras.layers import Dropout, Activation, LSTM, Dense
+from keras.layers.embeddings import Embedding
+from keras.preprocessing.text import Tokenizer
+from sklearn.preprocessing import LabelEncoder
+from keras.utils import to_categorical
+import numpy as np
 
 class RNNClassifier:
     def __init__(self, max_len_sequence, num_classes, name_classes, model_type):
@@ -23,14 +26,16 @@ class RNNClassifier:
         X_matrix = np.zeros((len(X_str), self.max_len_sequence, self.vocab_size))
         for i in np.arange(len(X_str)):
             sequence_i = self.tokenizer.texts_to_matrix(X_str[i])
-            X_matrix[i, : sequence_i.shape[0], :] = sequence_i
+            #X_matrix[i, : np.min(sequence_i.shape[0],self.max_len_sequence), :] = sequence_i[: np.min(sequence_i.shape[0],self.max_len_sequence), : ]
+            X_matrix[i, : sequence_i.shape[0], :] = sequence_i[ : self.max_len_sequence,:]
+
         return X_matrix
 
-    def buil_model(self, use_dropout=True, hidden_size=50, dropout=0.5):
+    def buil_model(self, use_dropout=True, hidden_size=5, dropout=0.5):
         model = Sequential()
         # batch size, number of time steps, hidden size)
-        model.add(Embedding(input_dim=self.vocab_size, output_dim=hidden_size, input_length=self.max_len_sequence))
-        model.add(LSTM(hidden_size, return_sequences=False))
+        #model.add(Embedding(input_dim=self.vocab_size, output_dim=hidden_size, input_length=self.max_len_sequence))
+        model.add(LSTM(hidden_size, input_shape=(self.max_len_sequence, self.vocab_size), return_sequences=False))
         #model.add(LSTM(hidden_size, return_sequences=True))
         if use_dropout:
             model.add(Dropout(dropout))
@@ -41,8 +46,10 @@ class RNNClassifier:
         print(model.summary())
         self.model = model
 
-    def fit(self, X_train, Y_train, epochs=500, batch_size=10):
+    def fit(self, X_train, Y_train, epochs=500, batch_size=1):
+        X_train = self.str_to_matrix(X_train)
         self.model.fit(X_train,Y_train, epochs=epochs, batch_size=batch_size)
   
     def predict(self, X_test):
+        X_test = self.str_to_matrix(X_test)
         return self.model.predict(X_test)

@@ -90,7 +90,7 @@ def get_length(table, connection=None):
 
 
 @cache
-def get_tables(connection=None):
+def get_table_names(connection):
     """
     Return all table names in the active db
     """
@@ -117,7 +117,7 @@ def get_table(table, connection=None, limit=1000):
 
 
 @cache
-def get_columns(table, connection=None, include_data_type=False):
+def get_column_names(connection, table, include_data_type=False):
     """
     Return column names of a table
     """
@@ -169,91 +169,90 @@ def has_frequency(table, connection=None):
     return len(result) > 0
 
 
-def fetch_columns(column_names, dataset_size, load_bar=None):
+def fetch_columns(connection, datasets, dataset_size, load_bar=None):
     """
     Given a spec in column_names, and a dataset_size,
     return extracted columns that will be used for training
     """
-    sql_params = get_sql_config("training_database")
-    with psycopg2.connect(**sql_params) as connection:
-        # Put arg in a list if it is not the case
-        if isinstance(column_names, (str, tuple)):
-            column_names = [column_names]
+    # Put arg in a list if it is not the case
+    if isinstance(datasets, (str, tuple)):
+        datasets = [datasets]
 
-        i_col = 0
-        columns = []
-        for column_name in column_names:
-            column_name, nb_datasets = column_name
+    i_col = 0
+    columns = []
+    for column_name in datasets:
+        column_name, nb_datasets = column_name
 
-            table, column = column_name.split(".")
+        table, column = column_name.split(".")
 
-            n_rows = get_length(table, connection)
+        n_rows = get_length(table, connection)
 
-            # If there is a weight for sampling, use log log to have frequent but various rows
-            weighted_sampling = has_frequency(table, connection)
-            order_limit = "ORDER BY "
-            if weighted_sampling:
-                order_limit += "LOG(LOG(frequency+2)) * RANDOM() DESC "
+        # If there is a weight for sampling, use log log to have frequent but various rows
+        weighted_sampling = has_frequency(table, connection)
+        order_limit = "ORDER BY "
+        if weighted_sampling:
+            order_limit += "LOG(LOG(frequency+2)) * RANDOM() DESC "
+        else:
+            order_limit += "RANDOM() "
+
+        # Add limit (note that we multiply with nb_datasets)
+        order_limit += "LIMIT {}".format(dataset_size * nb_datasets)
+
+        # Assemble SQL query
+        query = "SELECT {} FROM {} {};".format(column, table, order_limit)
+
+        # Run SQL to get samples of the database
+        sampled_rows = run(query, connection)
+
+        if len(sampled_rows) == 0:
+            continue
+
+        # Post-process: unwrap from rows, randomly re-order
+        sampled_rows = [row[0] for row in sampled_rows]
+        random.shuffle(sampled_rows)
+
+        # Post-process: convert to str if needed
+        for i, row in enumerate(sampled_rows):
+            if row is None:
+                sampled_rows[i] = ""
+            elif isinstance(row, str):
+                pass
+            elif isinstance(row, (int, float)):
+                sampled_rows[i] = str(row)
+            elif isinstance(row, datetime.date):
+                sampled_rows[i] = row.isoformat()
             else:
-                order_limit += "RANDOM() "
+                raise TypeError("Format of row is not supported", type(row), row)
 
-            # Add limit (note that we multiply with nb_datasets)
-            order_limit += "LIMIT {}".format(dataset_size * nb_datasets)
+        # Choose table rows ids with a uniform sampling with replacement strategy
+        datasets_virtual_ids = np.random.randint(
+            0, n_rows, (nb_datasets, dataset_size)
+        )
 
-            # Assemble SQL query
-            query = "SELECT {} FROM {} {};".format(column, table, order_limit)
+        # List all unique ids selected
+        virtual_unique_ids = list(
+            set(datasets_virtual_ids.reshape(1, -1)[0].tolist())
+        )
 
-            # Run SQL to get samples of the database
-            sampled_rows = run(query, connection)
+        # Map ids to real row indices of sampled_rows
+        virtual_sampled_mapping = {
+            v_id: s_id for s_id, v_id in enumerate(virtual_unique_ids)
+        }
+        mapper = lambda x: virtual_sampled_mapping[x]
 
-            if len(sampled_rows) == 0:
-                continue
+        for i in range(nb_datasets):
+            # Find the ids for the given dataset corresponding to the sampled_rows
+            virtual_ids = datasets_virtual_ids[i]
+            sampled_ids = np.vectorize(mapper)(virtual_ids)
 
-            # Post-process: unwrap from rows, randomly re-order
-            sampled_rows = [row[0] for row in sampled_rows]
-            random.shuffle(sampled_rows)
+            # Get the rows
+            rows = [sampled_rows[row_id] for row_id in sampled_ids]
 
-            # Post-process: convert to str if needed
-            for i, row in enumerate(sampled_rows):
-                if row is None:
-                    sampled_rows[i] = ""
-                elif isinstance(row, str):
-                    pass
-                elif isinstance(row, (int, float)):
-                    sampled_rows[i] = str(row)
-                elif isinstance(row, datetime.date):
-                    sampled_rows[i] = row.isoformat()
-                else:
-                    raise TypeError("Format of row is not supported", type(row), row)
+            columns.append((column_name, rows))
 
-            # Choose table rows ids with a uniform sampling with replacement strategy
-            datasets_virtual_ids = np.random.randint(
-                0, n_rows, (nb_datasets, dataset_size)
-            )
+            # Update the progress bar
+            if load_bar is not None:
+                i_col += 1
+                load_bar.value = i_col
 
-            # List all unique ids selected
-            virtual_unique_ids = list(
-                set(datasets_virtual_ids.reshape(1, -1)[0].tolist())
-            )
-
-            # Map ids to real row indices of sampled_rows
-            virtual_sampled_mapping = {
-                v_id: s_id for s_id, v_id in enumerate(virtual_unique_ids)
-            }
-            mapper = lambda x: virtual_sampled_mapping[x]
-
-            for i in range(nb_datasets):
-                # Find the ids for the given dataset corresponding to the sampled_rows
-                virtual_ids = datasets_virtual_ids[i]
-                sampled_ids = np.vectorize(mapper)(virtual_ids)
-
-                # Get the rows
-                rows = [sampled_rows[row_id] for row_id in sampled_ids]
-
-                columns.append((column_name, rows))
-
-                # Update the progress bar
-                if load_bar is not None:
-                    i_col += 1
-                    load_bar.value = i_col
-        return columns
+    return columns

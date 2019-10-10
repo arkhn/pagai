@@ -1,5 +1,4 @@
 import logging
-
 import psycopg2
 
 from engine import loader
@@ -33,7 +32,17 @@ source = [
 ]
 
 
-def train(owner, database, model_type="ngram"):
+def build_training_set(connection):
+    """Build training set."""
+    datasets, labels = spec_from_source(source)
+
+    logging.warning("Fetching data...")
+    columns = loader.fetch_columns(connection, datasets, dataset_size=100)
+
+    return columns, labels
+
+
+def train(columns, labels, model_type="ngram"):
     """
     Train a classification model on some dataset, and create a classification
     tool for columns of a given database, which will be used by the search
@@ -43,13 +52,10 @@ def train(owner, database, model_type="ngram"):
     :param model: which model to use
     :return: the model train, with classification performed.
     """
-
-    datasets, labels = spec_from_source(source)
-
-    logging.warning("Fetching data...")
-    columns = loader.fetch_columns(datasets, dataset_size=100)
-
-    models = {"ngram": ngram.NGramClassifier, "rnn": rnn.RNNClassifier}
+    models = {
+        "ngram": ngram.NGramClassifier,
+        "rnn": rnn.RNNClassifier
+    }
     model = models[model_type]()
 
     logging.warning("Preprocessing data...")
@@ -63,41 +69,6 @@ def train(owner, database, model_type="ngram"):
     y_pred = model.predict(X_test)
     model.score(y_pred, y_test)
 
-    logging.warning("Building classification...")
-    # Create connection to the `prod` database, on which we use the search engine
-    sql_params = loader.get_sql_config("prod_database")
-    with psycopg2.connect(**sql_params) as connection:
-        # Get all tables
-        prod_tables = loader.get_tables(connection)
-        prod_table_columns = [
-            "{}.{}".format(table, column)
-            for table in prod_tables
-            for column in loader.get_columns(table, connection)
-        ]
-        # Format to fit the transform and predict model pipeline
-        # TODO: have a specific canal
-        prod_source = [
-            ("unknown", table_column, 1) for table_column in prod_table_columns
-        ]
-        prod_datasets, _labels = spec_from_source(prod_source)
-        columns = loader.fetch_columns(prod_datasets, dataset_size=100)
-        X, columns = model.preprocess(columns, _labels, test_only=True)
-        # Keep the probabilities in the predictions, will be used for the scoring
-        y_pred = model.predict_proba(X)
-
-        # TODO : Move the classification elsewhere.
-        classification = []
-        for column, pred_proba in zip(columns, y_pred):
-            column_name, column_data = column
-            table_name = column_name.split(".")[0]
-            column = Column(table_name, column_name, data=column_data)
-            labels = [model.pred2label(input) for input in model.classes]
-            proba_classes = {l: p for l, p in zip(labels, pred_proba)}
-            column.set_proba_classes(proba_classes)
-            classification.append(column)
-        model.classification = classification
-
-    logging.warning("Done. Ready!")
     return model
 
 

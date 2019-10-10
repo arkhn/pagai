@@ -3,7 +3,7 @@ import time
 
 import psycopg2
 
-from engine.loader import sql
+from api.loader import sql
 from engine.structure import Graph
 from engine.config import Config
 

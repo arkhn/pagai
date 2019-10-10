@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_restful import Api
 
-from api.resources import Search, BetaSearch
+from api.resources import Search, BetaSearch, Analysis
 
 
 app = Flask(__name__)
@@ -16,6 +16,10 @@ api.add_resource(
     '/beta/search/<resource_type>',
     '/beta/search/<resource_type>/<head_table>',
     '/beta/search/<resource_type>/<head_table>/<column_name>',
+)
+api.add_resource(
+    Analysis,
+    '/runAnalysis'
 )
 
 

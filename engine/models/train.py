@@ -1,7 +1,7 @@
 import logging
 import psycopg2
 
-from engine import loader
+from api import loader
 from engine.models import ngram, rnn
 from engine.structure import Column
 

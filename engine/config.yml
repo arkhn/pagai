@@ -13,4 +13,3 @@ graph:
     str_id_max_unique_values: 40
 model:
     min_score: 0.1
-

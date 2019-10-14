@@ -15,10 +15,10 @@ import api.loader as loader
 
 ENCODING = 'utf-8'
 
-database = 'mimic' # 'CW'
-owner = 'ICSF'
-query = Query(owner, database)
-query.load()
+# database = 'mimic' # 'CW'
+# owner = 'ICSF'
+query = Query()
+# query.load()
 
 train_db_params = None
 prod_db_params = None
@@ -28,8 +28,10 @@ with open(configFileName) as configFile:
     try:
         # Load config
         config = yaml.safe_load(configFile)
-        train_db_params = config
-        prod_db_params = config
+        print(config)
+        train_db_params = config["staging_db"]
+        prod_db_params = config["staging_db"]
+        print(train_db_params)
     except yaml.YAMLError as error:
         print(error)
 
@@ -57,36 +59,39 @@ class Analysis(Resource):
     @staticmethod
     def get():
         # TODO: check model isn't already trained
-        is_trained = False
+        # is_trained = False
 
-        if is_trained:
-            return "already trained"
-        else:
-            columns, labels = None, None
-            with psycopg2.connect(**train_db_params) as connection:
-                columns, labels = build_training_set(connection)
+        # if is_trained:
+        #     return "already trained"
+        # else:
+        #     columns, labels = None, None
+        #     with psycopg2.connect(**train_db_params) as connection:
+        #         columns, labels = build_training_set(connection)
 
-            with psycopg2.connect(**prod_db_params) as connection:
-                # Train model...
-                model = train(columns, labels, model_type="ngram")
+        #     # Train model...
+        #     model = train(columns, labels, model_type="ngram")
 
-                # TODO: Store trained model
+        #     # TODO: Store trained model
 
-                # Fetch all distant columns
-                datasets, _labels = Analysis.build_datasets(connection)
-                columns = loader.fetch_columns(connection, datasets, dataset_size=100)
+        with psycopg2.connect(**prod_db_params) as connection:
+            # Compute dependency graph
+            query.load(connection)
 
-                # Classify all columns
-                classification = classify(model, columns, _labels)
+            # Fetch all distant columns
+            # datasets, _labels = Analysis.build_datasets(connection)
+            # columns = loader.fetch_columns(connection, datasets, dataset_size=100)
 
-                # TODO: Store classification
+            # Classify all columns
+            # classification = classify(model, columns, _labels)
+            # print(len(classification))
 
-                # TODO
-                # Compute dependency graph
-                # Store dependency graph
+            # TODO: Store classification
 
-                # return predictions, dependency graph
-                return "success"
+            # TODO
+            # Compute dependency graph
+            # Store dependency graph
+
+            return "success"
 
 
 class BetaSearch(Resource):

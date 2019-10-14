@@ -12,7 +12,7 @@ class Discovery:
     def __init__(self, database, owner):
         self.database = database
         self.owner = owner
-        self.sql_params = sql.get_sql_config("prod_database")
+        self.sql_params = sql.get_sql_config("debug_database")
         self.id_like_columns_tables = {}
         self.exclude_columns = ["id", "row_id"]
         self.config = Config("graph")
@@ -39,7 +39,7 @@ class Discovery:
 
         id_like_columns = []
 
-        column_infos = sql.get_columns(table, connection, include_data_type=True)
+        column_infos = sql.get_column_names(table, connection, include_data_type=True)
         column_names = []
         column_types = []
         for column_name, column_type in column_infos:
@@ -71,7 +71,7 @@ class Discovery:
 
         right_columns = self.find_id_like_columns(right_table, connection)
 
-        left_column_data = sql.get_column(left_table, left_column, connection)
+        left_column_data = sql.get_column(connection, left_table, left_column)
 
         acceptable_right_columns = []
         for right_column, column_type in right_columns:
@@ -99,7 +99,7 @@ class Discovery:
         Return the names of the tables which could be joined on table.id_column
         """
         compatible_tables = []
-        tables = [t for t in sql.get_tables(connection) if t != table]
+        tables = [t for t in sql.get_table_names(connection) if t != table]
         for right_table in tables:
             # print('\t{}'.format(right_table))
             acceptable_right_columns = self.table_compatibility(
@@ -133,7 +133,7 @@ class Discovery:
         graph = Graph()
         with psycopg2.connect(**self.sql_params) as connection:
             owner = self.owner
-            tables = sql.get_tables(connection)
+            tables = sql.get_table_names(connection)
             for table in tables:
                 graph.add_table(table)
 

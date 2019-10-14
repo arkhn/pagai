@@ -6,14 +6,13 @@ import numpy as np
 
 from engine.dependency import Discovery as Discovery
 from engine import models
+from engine.structure import Graph
 
 SAVE_PATH = "build/"
 
 
 class Query:
-    def __init__(self, database, owner):
-        self.database = database
-        self.owner = owner
+    def __init__(self):
         self.dependency_graph = None
         self.model = None
         self.models = {}
@@ -51,8 +50,7 @@ class Query:
 
         return self.api_response(columns)
 
-    def load(self, model_selected="ngram", force_retrain=False):
-        database, owner = self.database, self.owner
+    def load(self, connection, model_selected="ngram", force_retrain=False):
         query_path = f"{SAVE_PATH}query.pickle"
         query_pickle = Path(query_path)
         if query_pickle.is_file() and not force_retrain:
@@ -66,15 +64,17 @@ class Query:
         else:
             logging.warning("We're building the engine...")
             # Load the discovery module to build the dependency graph
-            discovery = Discovery(database, owner)
+            # discovery = Discovery(database, owner)
             logging.warning("Building the dependency graph...")
-            dependency_graph = discovery.build_dependency_graph()
+            # dependency_graph = discovery.build_dependency_graph()
+            dependency_graph = Graph()
 
             # Load and train the models
-            model_types = ["ngram", "rnn"]
+            model_types = ["ngram"]
             for model_type in model_types:
                 logging.warning(f"Training the {model_type} model...")
-                model = models.train.train(owner, database, model_type)
+                columns, labels = models.train.build_training_set(connection)
+                model = models.train.train(columns, labels, model_type)
                 self.models[model_type] = model
                 if model_type == model_selected:
                     self.model = model

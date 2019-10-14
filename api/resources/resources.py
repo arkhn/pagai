@@ -1,19 +1,27 @@
 from flask_restful import Resource, reqparse
+import logging
 import os
+import pickle
 import psycopg2
 import requests
 import yaml
+from pathlib import Path
 
 from api.common.utils import file_response
 from api.db.client import connect, closeConnection
+from engine.dependency.discovery import Discovery
 from engine.query import Query
 from engine.models.train import build_training_set, train, spec_from_source
 from engine.models.predict import classify
-from engine.structure import Column
+from engine.models.train import train
+from engine import models
+from engine.structure import Column, Graph
 import api.loader as loader
 
 
 ENCODING = 'utf-8'
+SAVE_PATH = "build/"
+
 
 # database = 'mimic' # 'CW'
 # owner = 'ICSF'
@@ -36,15 +44,15 @@ with open(configFileName) as configFile:
         print(error)
 
 
-class Analysis(Resource):
+class Init(Resource):
     @staticmethod
     def build_datasets(connection):
         # Get all table.column names
-        table_names = loader.get_table_names(connection)
+        table_names = loader.get_table_names(connection=connection)
         table_column_names = [
             "{}.{}".format(table_name, column_name)
             for table_name in table_names
-            for column_name in loader.get_column_names(connection, table_name)
+            for column_name in loader.get_column_names(table_name, connection=connection)
         ]
 
         # Format to fit the transform and predict model pipeline
@@ -57,39 +65,59 @@ class Analysis(Resource):
         return datasets, _labels
 
     @staticmethod
-    def get():
-        # TODO: check model isn't already trained
-        # is_trained = False
+    def get(database_name, force_retrain=False):
+        query_path = f"{SAVE_PATH}{database_name}.pickle"
+        query_pickle = Path(query_path)
 
-        # if is_trained:
-        #     return "already trained"
-        # else:
-        #     columns, labels = None, None
-        #     with psycopg2.connect(**train_db_params) as connection:
-        #         columns, labels = build_training_set(connection)
+        # Check model isn't already trained
+        if query_pickle.is_file() and not force_retrain:
+            logging.warning("Model ready!")
 
-        #     # Train model...
-        #     model = train(columns, labels, model_type="ngram")
+            return "trained"
+        else:
+            with psycopg2.connect(**prod_db_params) as connection:
+                logging.warning("Building engine...")
+                # Load discovery module to build dependency graph
+                discovery = Discovery()
+                logging.warning("Building the dependency graph...")
+                dependency_graph = discovery.build_dependency_graph(connection)
+                # dependency_graph = Graph()
 
-        #     # TODO: Store trained model
+                # Train models
+                model_types = ["ngram"]
+                models = dict()
+                classifications = dict()
 
-        with psycopg2.connect(**prod_db_params) as connection:
-            # Compute dependency graph
-            query.load(connection)
+                logging.warning("Load training sets...")
+                columns, labels = None, None
 
-            # Fetch all distant columns
-            # datasets, _labels = Analysis.build_datasets(connection)
-            # columns = loader.fetch_columns(connection, datasets, dataset_size=100)
+                # Build training set
+                with psycopg2.connect(**train_db_params) as connection:
+                    columns, labels = build_training_set(connection)
 
-            # Classify all columns
-            # classification = classify(model, columns, _labels)
-            # print(len(classification))
+                # Fetch all rows to be classified
+                datasets, _labels = Init.build_datasets(connection)
+                columns = loader.fetch_columns(connection, datasets, dataset_size=100)
 
-            # TODO: Store classification
+                # Train and classify each model
+                for model_type in model_types:
+                    # Train
+                    logging.warning(f"Training {model_type}...")
+                    model = train(columns, labels, model_type)
+                    models[model_type] = model
+                    # Classify
+                    classification = classify(model, columns, _labels)
+                    classifications[model_type] = classification
 
-            # TODO
-            # Compute dependency graph
-            # Store dependency graph
+                # Store dependency graph, trained models, and predictions
+                if not os.path.exists(os.path.dirname(query_path)):
+                    os.makedirs(os.path.dirname(query_path))
+                with open(query_path, "wb") as file:
+                    pickle.dump({
+                        "dependency_graph": dependency_graph,
+                        "models": models,
+                        "classifications": classifications
+                    }, file)
 
             return "success"
 

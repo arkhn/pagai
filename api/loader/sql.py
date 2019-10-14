@@ -90,15 +90,11 @@ def get_length(table, connection=None):
 
 
 @cache
-def get_table_names(connection):
+def get_table_names(connection=None):
     """
     Return all table names in the active db
     """
-    query = (
-        "select table_name "
-        "from information_schema.tables "
-        "where table_schema = 'public';"
-    )
+    query = "SELECT table_name FROM information_schema.tables;"
 
     result = run(query, connection)
     tables = np.array(result).T[0]
@@ -117,7 +113,7 @@ def get_table(table, connection=None, limit=1000):
 
 
 @cache
-def get_column_names(connection, table, include_data_type=False):
+def get_column_names(table, connection=None, include_data_type=False):
     """
     Return column names of a table
     """
@@ -169,7 +165,7 @@ def has_frequency(table, connection=None):
     return len(result) > 0
 
 
-def fetch_columns(connection, datasets, dataset_size, load_bar=None):
+def fetch_columns(datasets, dataset_size, connection=None, load_bar=None):
     """
     Given a spec in column_names, and a dataset_size,
     return extracted columns that will be used for training

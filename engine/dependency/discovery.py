@@ -1,6 +1,8 @@
 import re
 import time
 
+from tqdm import tqdm
+
 import psycopg2
 
 from api.loader import sql
@@ -9,10 +11,8 @@ from engine.config import Config
 
 
 class Discovery:
-    def __init__(self, database, owner):
-        self.database = database
-        self.owner = owner
-        self.sql_params = sql.get_sql_config("debug_database")
+    def __init__(self):
+        self.sql_params = sql.get_sql_config("training_database")
         self.id_like_columns_tables = {}
         self.exclude_columns = ["id", "row_id"]
         self.config = Config("graph")
@@ -39,7 +39,7 @@ class Discovery:
 
         id_like_columns = []
 
-        column_infos = sql.get_column_names(table, connection, include_data_type=True)
+        column_infos = sql.get_column_names(table, connection=connection, include_data_type=True)
         column_names = []
         column_types = []
         for column_name, column_type in column_infos:
@@ -99,8 +99,8 @@ class Discovery:
         Return the names of the tables which could be joined on table.id_column
         """
         compatible_tables = []
-        tables = [t for t in sql.get_table_names(connection) if t != table]
-        for right_table in tables:
+        tables = [t for t in sql.get_table_names(connection=connection) if t != table]
+        for right_table in tqdm(tables):
             # print('\t{}'.format(right_table))
             acceptable_right_columns = self.table_compatibility(
                 table, id_column, right_table, id_column_type, connection
@@ -118,7 +118,7 @@ class Discovery:
         # print([id_column for id_column, id_column_type in id_columns])
         joinable_tables = {}
 
-        for id_column, id_column_type in id_columns:
+        for id_column, id_column_type in tqdm(id_columns):
             # print('#COL_ID ', id_column)
             # print(list(sql.get_column(table, id_column, connection))[:10])
             compatible_tables = self.find_compatible_tables(
@@ -129,24 +129,24 @@ class Discovery:
 
         return joinable_tables
 
-    def build_dependency_graph(self):
+    def build_dependency_graph(self, connection):
         graph = Graph()
-        with psycopg2.connect(**self.sql_params) as connection:
-            owner = self.owner
-            tables = sql.get_table_names(connection)
-            for table in tables:
-                graph.add_table(table)
+        tables = sql.get_table_names(connection=connection)
+        for table in tables:
+            graph.add_table(table)
 
-            start_time = time.time()
-            for table in tables:
-                # print('*********************  {}   {}\n'.format(table, time.time() - start_time))
-                joinable_tables = self.find_joinable_tables(table, connection)
+        start_time = time.time()
+        for table in tqdm(tables):
+            tqdm.write("Computing joinable tables...")
+            # print('*********************  {}   {}\n'.format(table, time.time() - start_time))
+            joinable_tables = self.find_joinable_tables(table, connection)
 
-                for id_column, join_data in joinable_tables.items():
-                    for joinable_table, joinable_columns in join_data:
-                        for joinable_column in joinable_columns:
-                            join_info = (id_column, joinable_column)
-                            graph.add_join(table, joinable_table, join_info)
+            tqdm.write("Add results to graph")
+            for id_column, join_data in joinable_tables.items():
+                for joinable_table, joinable_columns in join_data:
+                    for joinable_column in joinable_columns:
+                        join_info = (id_column, joinable_column)
+                        graph.add_join(table, joinable_table, join_info)
 
         return graph
 

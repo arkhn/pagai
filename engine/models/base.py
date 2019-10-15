@@ -1,9 +1,8 @@
 import random
 import logging
 import numpy as np
+import os
 import torch.nn as nn
-
-from engine.config import Config
 
 
 class BaseClassifier(nn.Module):
@@ -15,7 +14,6 @@ class BaseClassifier(nn.Module):
     def __init__(self):
         super().__init__()
         self.classification = None
-        self.config = Config("model")
 
     def find_all(self, resource_type, max_col_len=20):
         if self.classification is None:
@@ -27,7 +25,7 @@ class BaseClassifier(nn.Module):
             else:
                 column.score = 1
                 logging.warning("No ResourceType was provided")
-            if column.score > self.config.min_score:
+            if column.score > float(os.getenv('MIN_SCORE')):
                 column.data = column.data[:max_col_len]
                 results.append(column)
 

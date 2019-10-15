@@ -1,1 +1,1 @@
-from engine.models import train
+from engine.models import train, predict

@@ -1,10 +1,9 @@
+from tqdm import tqdm
 import datetime
-import random
-
 import numpy as np
+import os
 import psycopg2
-
-from engine.config import Config
+import random
 
 
 def cache(request):
@@ -39,13 +38,14 @@ def cache(request):
     return store
 
 
-def get_sql_config(database="training_database"):
-    config = Config("sql")
-    if not hasattr(config, database):
-        raise AttributeError(
-            "The database {} is not configured for the engine.".format(database)
-        )
-    return getattr(config, database).to_dict()
+def get_sql_config():
+    return {
+        "host": os.getenv("DB_HOST"),
+        "port": os.getenv("DB_PORT"),
+        "database": os.getenv("DB_NAME"),
+        "user": os.getenv("DB_USER"),
+        "password": os.getenv("DB_PASSWORD"),
+    }
 
 
 def run(queries, connection=None):
@@ -53,7 +53,7 @@ def run(queries, connection=None):
     Execute queries and can create a sql connection if needed
     """
     if connection is None:
-        sql_params = get_sql_config("training_database")
+        sql_params = get_sql_config()
         with psycopg2.connect(**sql_params) as connection:
             results = execute(queries, connection)
 
@@ -176,7 +176,7 @@ def fetch_columns(datasets, dataset_size, connection=None, load_bar=None):
 
     i_col = 0
     columns = []
-    for column_name in datasets:
+    for column_name in tqdm(datasets):
         column_name, nb_datasets = column_name
 
         table, column = column_name.split(".")

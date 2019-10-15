@@ -1,7 +1,7 @@
 import logging
 import psycopg2
 
-from api import loader
+from queries.postgres import fetch_columns
 from engine.models import ngram, rnn
 from engine.structure import Column
 
@@ -13,8 +13,8 @@ from engine.structure import Column
 # sampled by replacement.
 
 source = [
-    ("firstname", "firstnames.firstname", 100),
-    ("name", "names.name", 100),
+    # ("firstname", "firstnames.firstname", 100),
+    # ("name", "names.name", 100),
     ("code", "patients.gender", 10),
     ("code", "admissions.marital_status", 10),
     ("code", "admissions.religion", 10),
@@ -27,8 +27,8 @@ source = [
     ("id", "admissions.hadm_id", 10),
     ("id", "admissions.subject_id", 10),
     ("id", "prescriptions.subject_id", 80),
-    ("address", "addresses.road", 100),
-    ("city", "addresses.city", 100),
+    # ("address", "addresses.road", 100),
+    # ("city", "addresses.city", 100),
 ]
 
 
@@ -36,8 +36,7 @@ def build_training_set(connection):
     """Build training set."""
     datasets, labels = spec_from_source(source)
 
-    logging.warning("Fetching data...")
-    columns = loader.fetch_columns(connection, datasets, dataset_size=100)
+    columns = fetch_columns(datasets, dataset_size=100, connection=connection)
 
     return columns, labels
 

@@ -1,1 +1,1 @@
-from queries.postgres.postgres import fetch_columns, get_table_names, get_column_names, get_column, get_table
+from queries.postgres.main import fetch_columns, get_table_names, get_column_names, get_column, get_table

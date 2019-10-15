@@ -6,6 +6,12 @@
 
 The nlp-engine project is tightly linked to the fhir-ball project, but it serves also a broader purpose: providing an efficient tool to inspect a SQL database and extract meaningful informations.
 
+## TLDR
+
+After setting up virtualenv, launch server with `python api/server.py`.
+
+Then visit `http://localhost:5000/init/<database_name>` to start database analysis.
+
 ## The concept
 
 The nlp-engine combines two advanced tools:

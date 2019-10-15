@@ -61,6 +61,7 @@ def run(queries, connection=None):
     else:
         results = execute(queries, connection)
 
+    # TODO: return actual results rather than parsed results
     return results if isinstance(queries, list) > 1 else results[0]
 
 
@@ -92,12 +93,36 @@ def get_length(table, connection=None):
 @cache
 def get_table_names(connection=None):
     """
-    Return all table names in the active db
+    Return all table names in the active database, on conditions:
+    * remove table names which belong to the same partition
+    * only fetch table names belonging to relevant postgres database schema
     """
-    query = "SELECT table_name FROM information_schema.tables;"
 
-    result = run(query, connection)
-    tables = np.array(result).T[0]
+    query = f"SELECT table_name FROM information_schema.tables;"
+
+    # If PG_DB_SCHEMA is not "", then use it.
+    # It prevents fetching tables which belong to pg_catalog or information_schema
+    if os.getenv('PG_DB_SCHEMA'):
+        query = f"SELECT table_name FROM information_schema.tables WHERE table_schema='{os.getenv('PG_DB_SCHEMA')}';"
+    all_table_names = run(query, connection)
+
+    # Filter out all table names which belong to a partition
+    # and keep only partition name
+    partition_query = ("""WITH partitions AS (SELECT
+    string_agg(child.relname, ', ') AS tables,
+    inhparent
+FROM pg_inherits
+    JOIN pg_class parent ON pg_inherits.inhparent = parent.oid
+    JOIN pg_class child ON pg_inherits.inhrelid = child.oid
+GROUP BY inhparent) SELECT tables, parent.relname FROM partitions JOIN pg_class parent ON inhparent = parent.oid;""")
+    partitions = run(partition_query, connection)
+
+    for partition in partitions:
+        partition_table_names = partition[0].split(', ')
+        all_table_names = list(filter(lambda x: x[0] not in partition_table_names, all_table_names))
+
+    tables = np.array(all_table_names).T[0]
+
     return tables
 
 

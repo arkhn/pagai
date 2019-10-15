@@ -1,1 +1,1 @@
-from engine.dependency.builder import DependencyGraphBuilder
+from engine.dependency.main import DependencyGraphBuilder

@@ -1,6 +1,7 @@
 abcd
 conf.custom.yml
 .env.dev.custom
+.vscode
 
 notebooks/data/
 # config.yml

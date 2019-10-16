@@ -28,7 +28,7 @@ def init(database_name, force_retrain=False):
 
 
 @api.route("/retrain/<database_name>", methods=['GET'])
-def retrain(database_name, force_retrain=False):
+def retrain(database_name):
     """
     Force build dependency graph, train model and predict classes.
     """

@@ -2,12 +2,12 @@ import logging
 from engine.structure import Column
 
 
-def classify(model, columns, _labels):
+def classify(model, columns, labels=None):
     """Gets model, columns,
     predicts class probabilities for each column
     and return them."""
 
-    X, columns = model.preprocess(columns, _labels, test_only=True)
+    X, columns = model.preprocess(columns, labels=labels, test_only=True)
     # Keep prediction probabilities,
     # it will be used for scoring
     y_pred = model.predict_proba(X)

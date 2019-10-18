@@ -50,7 +50,7 @@ class NGramClassifier(BaseClassifier):
         self.classification = state["classification"]
         self.config = state["config"]
 
-    def preprocess(self, columns, labels, test_only=False):
+    def preprocess(self, columns, labels=None, test_only=False):
         """
         Reorganise data from the SQL loader, add stats features and split in train/test
         """

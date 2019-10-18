@@ -22,7 +22,7 @@ class Column:
             score = min(score, distance)
         return score
 
-    def ser(self):
+    def serialize(self):
         """
         Transform Column in a dict for readability
 

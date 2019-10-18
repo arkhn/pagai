@@ -1,1 +1,1 @@
-from engine.main import init
+from engine.main import Engine

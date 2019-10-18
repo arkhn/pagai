@@ -5,10 +5,11 @@ import os
 import yaml
 
 from api.errors.operation_outcome import OperationOutcome
-import engine
+from engine import Engine
 
 
 api = Blueprint('api', __name__)
+engines = dict()
 
 
 @api.route("/init/<database_name>/<force_retrain>", methods=['GET'])
@@ -19,8 +20,11 @@ def init(database_name, force_retrain=False):
     """
 
     try:
-        engine.init(database_name, force_retrain=force_retrain)
-    except:
+        engine = Engine(database_name)
+        engines[database_name] = engine
+        engine.initialise(force_retrain=force_retrain)
+    except MemoryError as e:
+        print(e)
         print("engine.init crashed beautifully")
         return "error", 500
 
@@ -34,12 +38,37 @@ def retrain(database_name):
     """
 
     try:
-        engine.init(database_name, force_retrain=True)
+        engine = engines[database_name]
+        engine.initialise(force_retrain=True)
     except:
         print("retraining crashed beautifully")
         return "error", 500
 
     return "success", 200
+
+
+@api.route("/search/<database_name>/<resource_type>", methods=['GET'])
+def search(database_name, resource_type):
+    """
+    Handle search calls by resource_type, keywords, etc.
+    """
+    engine = engines[database_name]
+    columns = engine.score(resource_type)
+
+    return columns, 200
+
+
+@api.route("/beta/search/<database_name>/<resource_type>", methods=['GET'])
+@api.route("/beta/search/<database_name>/<resource_type>/<head_table>", methods=['GET'])
+@api.route("/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>", methods=['GET'])
+def betasearch(database_name, resource_type, head_table=None, column_name=None):
+    """
+    Return columns which have the desired resource type.
+    """
+    engine = engines[database_name]
+    columns = engine.score(resource_type, parent_table=head_table, column_name=column_name)
+
+    return columns
 
 
 @api.errorhandler(OperationOutcome)

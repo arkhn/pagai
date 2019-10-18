@@ -108,13 +108,16 @@ def get_table_names(connection=None):
 
     # Filter out all table names which belong to a partition
     # and keep only partition name
-    partition_query = ("""WITH partitions AS (SELECT
+    partition_query = ("""
+WITH partitions AS (SELECT
     string_agg(child.relname, ', ') AS tables,
     inhparent
 FROM pg_inherits
-    JOIN pg_class parent ON pg_inherits.inhparent = parent.oid
     JOIN pg_class child ON pg_inherits.inhrelid = child.oid
-GROUP BY inhparent) SELECT tables, parent.relname FROM partitions JOIN pg_class parent ON inhparent = parent.oid;""")
+GROUP BY inhparent)
+SELECT tables, parent.relname
+FROM partitions
+JOIN pg_class parent ON inhparent = parent.oid;""")
     partitions = run(partition_query, connection)
 
     for partition in partitions:

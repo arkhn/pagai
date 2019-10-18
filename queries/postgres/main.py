@@ -193,37 +193,34 @@ def has_frequency(table, connection=None):
     return len(result) > 0
 
 
-def fetch_columns(datasets, dataset_size, connection=None, load_bar=None):
+def fetch_columns(datasets, dataset_size, connection=None):
     """
     Given a spec in column_names, and a dataset_size,
-    return extracted columns that will be used for training
+    return extracted columns that will be used for training and classification
     """
     # Put arg in a list if it is not the case
     if isinstance(datasets, (str, tuple)):
         datasets = [datasets]
 
-    i_col = 0
     columns = []
-    for column_name in tqdm(datasets):
-        column_name, nb_datasets = column_name
-
-        table, column = column_name.split(".")
-
+    for dataset in tqdm(datasets):
+        table_column_name, nb_datasets = dataset
+        table, column = table_column_name.split(".")
         n_rows = get_length(table, connection)
 
         # If there is a weight for sampling, use log log to have frequent but various rows
         weighted_sampling = has_frequency(table, connection)
-        order_limit = "ORDER BY "
+        order = "ORDER BY "
         if weighted_sampling:
-            order_limit += "LOG(LOG(frequency+2)) * RANDOM() DESC "
+            order += "LOG(LOG(frequency+2)) * RANDOM() DESC"
         else:
-            order_limit += "RANDOM() "
+            order += "RANDOM()"
 
-        # Add limit (note that we multiply with nb_datasets)
-        order_limit += "LIMIT {}".format(dataset_size * nb_datasets)
+        # Add limit (note that we multiply by nb_datasets)
+        limit += f"LIMIT {dataset_size * nb_datasets}"
 
         # Assemble SQL query
-        query = "SELECT {} FROM {} {};".format(column, table, order_limit)
+        query = f"SELECT {column} FROM {table} {order} {limit};"
 
         # Run SQL to get samples of the database
         sampled_rows = run(query, connection)
@@ -272,11 +269,6 @@ def fetch_columns(datasets, dataset_size, connection=None, load_bar=None):
             # Get the rows
             rows = [sampled_rows[row_id] for row_id in sampled_ids]
 
-            columns.append((column_name, rows))
-
-            # Update the progress bar
-            if load_bar is not None:
-                i_col += 1
-                load_bar.value = i_col
+            columns.append((column, rows))
 
     return columns

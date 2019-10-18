@@ -12,6 +12,7 @@ api = Blueprint('api', __name__)
 engines = dict()
 
 
+@api.route("/init/<database_name>", methods=['GET'])
 @api.route("/init/<database_name>/<force_retrain>", methods=['GET'])
 def init(database_name, force_retrain=False):
     """

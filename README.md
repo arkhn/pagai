@@ -1,14 +1,14 @@
-# nlp-engine: dive into your data pool
+# Pagai: dive into your data pool
 
 [![Build Status](https://travis-ci.com/arkhn/fhir-store.svg?branch=master)](https://travis-ci.com/arkhn/fhir-store)
 [![GitHub license](https://img.shields.io/github/license/arkhn/fhir-pipe.svg)](https://github.com/arkhn/fhir-pipe/blob/master/LICENSE)
 [![Website arkhn.org](https://img.shields.io/website-up-down-green-red/https/arkhn.org.svg)](http://arkhn.org/)
 
-The nlp-engine project is tightly linked to the fhir-ball project, but it serves also a broader purpose: providing an efficient tool to inspect a SQL database and extract meaningful informations.
+The PagAI project is tightly linked to the fhir-ball project, but it serves also a broader purpose: providing an efficient tool to inspect a SQL database and extract meaningful informations.
 
 ## The concept
 
-The nlp-engine combines two advanced tools:
+The pagai combines two advanced tools:
 
 ### Functional type inference of columns
 
@@ -22,7 +22,7 @@ The **dependency graph** builder finds links between tables within a database, b
 
 ## The query functionality
 
-Merging this two tools is the real strength of the nlp-engine project. Indeed it is possible to query the database with the engine to retrieve interesting columns. The search is based on a score allocated to each column, which depends on the relevance of the functional type and the distance in the dependency graph to the table we're considering (like `patient` for example). In addition, we have also added a fuzzy matching algorithm on the table and column name to update the score and return the most relevant columns.
+Merging this two tools is the real strength of the pagai project. Indeed it is possible to query the database with the engine to retrieve interesting columns. The search is based on a score allocated to each column, which depends on the relevance of the functional type and the distance in the dependency graph to the table we're considering (like `patient` for example). In addition, we have also added a fuzzy matching algorithm on the table and column name to update the score and return the most relevant columns.
 
 With this, we can answer questions like:
  - "Give me the date of birth of patient"
@@ -45,7 +45,7 @@ Parameters:
 - **reference_table**: the reference table for the dependency graph (`patient` in the examples above)
 - **keyword_column**: keywords to match column or table names with fuzzy matching (ex: `birth`-> `birthdate`)
 
-## Getting started and building my customized nlp-engine
+## Getting started and building my customized pagai
 
 As for now, we're training our engine on a simplified version of the MIMIC dataset extended with firstname, name and address data.
 

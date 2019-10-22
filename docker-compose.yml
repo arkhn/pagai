@@ -3,7 +3,7 @@ version: '3'
 services:
   pagai:
     build:
-      context: .
+      context: ./pagai
     volumes:
       - ./models:/srv/pagai/models
     ports:

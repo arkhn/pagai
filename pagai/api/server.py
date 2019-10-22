@@ -2,6 +2,8 @@ from dotenv import load_dotenv
 from flask import Flask, Blueprint, request, jsonify
 import json
 import os
+from pathlib import Path
+import pickle
 import yaml
 
 from api.errors.operation_outcome import OperationOutcome
@@ -10,7 +12,7 @@ from engine import Engine
 
 api = Blueprint('api', __name__)
 engines = dict()
-
+SAVE_PATH = "build"
 
 @api.route("/init/<database_name>", methods=['GET'])
 @api.route("/init/<database_name>/<force_retrain>", methods=['GET'])
@@ -70,6 +72,24 @@ def betasearch(database_name, resource_type, head_table=None, column_name=None):
     columns = engine.score(resource_type, parent_table=head_table, column_name=column_name)
 
     return columns
+
+
+@api.route("/state/<database_name>",methods=['GET'])
+def state(database_name):
+    """
+    Endpoint for retrieving the state of the data-base.
+    Returns untrained or trained.
+    """
+    pickle_path = f"{SAVE_PATH}/{database_name}.pickle"
+    pickle_file = Path(pickle_path)
+
+    # Check if model is already trained
+    if pickle_file.is_file():
+        print("trained model")
+        return "trained"
+    else:
+        print("untrained model or unknown database")
+        return "untrained or unknown database name"
 
 
 @api.errorhandler(OperationOutcome)

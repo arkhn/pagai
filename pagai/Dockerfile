@@ -13,5 +13,7 @@ RUN pip install -r requirements.txt --src /usr/local/src
 
 COPY . /srv/pagai
 
+ENV JOBLIB_MULTIPROCESSING=0
+
 RUN chmod +x ./start.sh
 CMD ["./start.sh"] 

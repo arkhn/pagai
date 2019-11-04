@@ -1,1 +1,1 @@
-from engine.models.ngram.model import NGramClassifier
+from pagai.engine.models.ngram.model import NGramClassifier

@@ -1,11 +1,9 @@
 from tqdm import tqdm
 import os
-import psycopg2
 import re
-import time
 
-from engine.structure import Graph
-from queries.postgres import get_table_names, get_column_names, get_table, get_column
+from pagai.engine.structure import Graph
+from pagai.queries.postgres import get_table_names, get_column_names, get_table, get_column
 
 
 EXCLUDE_COLUMNS = ["id", "row_id"]

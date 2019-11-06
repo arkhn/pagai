@@ -101,7 +101,7 @@ class Engine:
                 datasets, _ = Engine.build_datasets(connection)
                 logging.warning("Fetch columns...")
                 # TODO: change dataset_size back to 100
-                columns = fetch_columns(datasets, dataset_size=1, connection=connection)
+                test_columns = fetch_columns(datasets, dataset_size=1, connection=connection)
 
                 # Train and classify each model
                 for model_type in model_types:
@@ -110,7 +110,7 @@ class Engine:
                     model = train.train(columns, labels, model_type)
                     self.models[model_type] = model
                     # Classify
-                    classification = predict.classify(model, columns)
+                    classification = predict.classify(model, test_columns)
                     self.classifications[model_type] = classification
 
                 # Store dependency graph, trained models, and predictions

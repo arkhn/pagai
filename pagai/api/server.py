@@ -101,7 +101,7 @@ app.register_blueprint(api)
 
 if __name__ == '__main__':
     # Load .env config file for entire environement
-    configFileName = './.env.dev.custom' if os.path.exists('./.env.dev.custom') else './.env.dev.default'
+    configFileName = './pagai/.env.dev.custom' if os.path.exists('./pagai/.env.dev.custom') else './pagai/.env.dev.default'
     load_dotenv(dotenv_path=configFileName)
 
     # Start application

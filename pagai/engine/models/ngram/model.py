@@ -30,7 +30,6 @@ class NGramClassifier(BaseClassifier):
             "n_gram_vectorizer": self.n_gram_vectorizer,
             "clf": self.clf,
             "classification": self.classification,
-            "config": self.config,
         }
         return state
 
@@ -47,7 +46,6 @@ class NGramClassifier(BaseClassifier):
             ngram_range=self.ngram_range
         )
         self.classification = state["classification"]
-        self.config = state["config"]
 
     def preprocess(self, columns, labels=None, test_only=False):
         """
@@ -216,7 +214,7 @@ class NGramClassifier(BaseClassifier):
                         if notin(n_gram, except_chars)
                     ]
                     # Replace some characters like numbers with generic masks
-                    n_grams = [re.sub("\d", "\d", n_gram) for n_gram in n_grams]
+                    n_grams = [re.sub("\d", "\\\d", n_gram) for n_gram in n_grams]
                     all_grams += n_grams
                 return all_grams
             else:

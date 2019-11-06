@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 from flask import Flask, Blueprint
 from pathlib import Path
 
-from pagai.api.errors.operation_outcome import OperationOutcome
-from pagai.engine import Engine
+from api.errors.operation_outcome import OperationOutcome
+from engine import Engine
 
 
 api = Blueprint("api", __name__)
@@ -108,9 +108,7 @@ app.register_blueprint(api)
 if __name__ == "__main__":
     # Load .env config file for entire environement
     configFileName = (
-        "./pagai/.env.dev.custom"
-        if os.path.exists("./pagai/.env.dev.custom")
-        else "./pagai/.env.dev.default"
+        ".env.dev.custom" if os.path.exists(".env.dev.custom") else ".env.dev.default"
     )
     load_dotenv(dotenv_path=configFileName)
 

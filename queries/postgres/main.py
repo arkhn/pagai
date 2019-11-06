@@ -126,6 +126,7 @@ JOIN pg_class parent ON inhparent = parent.oid;"""
             filter(lambda x: x[0] not in partition_table_names, all_table_names)
         )
 
+    print(np.array(all_table_names))
     tables = np.array(all_table_names).T[0]
 
     return tables

@@ -1,4 +1,4 @@
-from pagai.engine.structure.table import Table
+from engine.structure.table import Table
 
 
 class Graph:

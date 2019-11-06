@@ -162,35 +162,54 @@ def get_column_names(table, connection=None, include_data_type=False):
 
 
 @cache
-def get_column(table, column, connection=None):
+def get_column(table, column, limit=None, order=None, connection=None):
     """
     Return one column's table content with limit
     Used only to find value in the content, so the result is converted in a set.
     """
     table_len = get_length(table, connection)
-    limit = max(5000, round(table_len ** (2 / 3)))
+    limit = limit or max(5000, round(table_len ** (2 / 3)))
+    order = order or "RANDOM()"
     query = (
-        "SELECT {} "
-        "FROM {} "
-        "ORDER BY RANDOM() LIMIT {}".format(column, table, limit)
+        f"SELECT {column} "
+        f"FROM {table} "
+        f"ORDER BY {order}"
+        f"LIMIT {limit}"
     )
     results = run(query, connection)
     results = set([res[0] for res in results])
 
     return results
 
+storage = {}
+def get_column_fast(table, column, limit=None, order=None, connection=None):
+    # Build identifier based on args and kwargs
+    identifier = f"{table}:{limit}:{order}"
 
-def has_frequency(table, connection=None):
-    """
-    Check if there is a column frequency, which will act as a weight for sampling
-    """
-    query = (
-        "SELECT column_name "
-        "FROM information_schema.columns "
-        "WHERE table_name='{}' and column_name='{}';".format(table, "frequency")
-    )
-    result = run(query, connection)
-    return len(result) > 0
+    # Search storage based on identifier
+    if identifier not in storage:
+        print('compute')
+        table_len = get_length(table, connection)
+        limit = limit or max(5000, round(table_len ** (2 / 3)))
+        order = order or "RANDOM()"
+        query = (
+            f"SELECT * "
+            f"FROM {table} "
+            f"ORDER BY {order}"
+            f"LIMIT {limit}"
+        )
+        results = run(query, connection)
+
+        columns = get_column_names(table, connection)
+
+        results = np.array(results)
+
+        storage[identifier] = {}
+        for idx, col in enumerate(columns):
+            storage[identifier][col] = results[:, idx]
+    else:
+        print('cached')
+    return storage[identifier][column]
 
 
 def fetch_columns(datasets, dataset_size, connection=None):
@@ -203,33 +222,33 @@ def fetch_columns(datasets, dataset_size, connection=None):
         datasets = [datasets]
 
     columns = []
-    for dataset in tqdm(datasets):
+    print(len(datasets), "datasets")
+    for i, dataset in enumerate(datasets):
+        print(i, '/', len(datasets))
         table_column_name, nb_datasets = dataset
         table, column = table_column_name.split(".")
+
         n_rows = get_length(table, connection)
 
         # If there is a weight for sampling, use log log to have frequent but various rows
         weighted_sampling = has_frequency(table, connection)
-        order = "ORDER BY "
         if weighted_sampling:
-            order += "LOG(LOG(frequency+2)) * RANDOM() DESC"
+            order = "LOG(LOG(frequency+2)) * RANDOM() DESC"
         else:
-            order += "RANDOM()"
+            order = "RANDOM()"
 
         # Add limit (note that we multiply by nb_datasets)
-        limit += f"LIMIT {dataset_size * nb_datasets}"
+        limit = dataset_size * nb_datasets
 
-        # Assemble SQL query
-        query = f"SELECT {column} FROM {table} {order} {limit};"
-
-        # Run SQL to get samples of the database
-        sampled_rows = run(query, connection)
+        # Call the cached method to get samples of the database
+        print(table, ':', column, '?', end='\t')
+        sampled_rows = get_column_fast(table, column, limit, order, connection)
 
         if len(sampled_rows) == 0:
             continue
 
-        # Post-process: unwrap from rows, randomly re-order
-        sampled_rows = [row[0] for row in sampled_rows]
+        # Post-process: randomly re-order
+        sampled_rows = sampled_rows.tolist()
         random.shuffle(sampled_rows)
 
         # Post-process: convert to str if needed
@@ -243,7 +262,7 @@ def fetch_columns(datasets, dataset_size, connection=None):
             elif isinstance(row, datetime.date):
                 sampled_rows[i] = row.isoformat()
             else:
-                raise TypeError("Format of row is not supported", type(row), row)
+                raise TypeError("Format of row is not supported", type(row), row, sampled_rows)
 
         # Choose table rows ids with a uniform sampling with replacement strategy
         datasets_virtual_ids = np.random.randint(
@@ -272,3 +291,18 @@ def fetch_columns(datasets, dataset_size, connection=None):
             columns.append((column, rows))
 
     return columns
+
+
+def has_frequency(table, connection=None):
+    """
+    Check if a table has a column frequency, which will act as a weight for sampling
+    """
+    query = (
+        f"SELECT column_name "
+        f"FROM information_schema.columns "
+        f"WHERE table_name='{table}' and column_name='frequency';"
+    )
+    result = run(query, connection)
+    return len(result) > 0
+
+

@@ -37,7 +37,6 @@ class Engine:
         self.models = {}
         self.classifications = {}
 
-
     @staticmethod
     def build_datasets(connection):
         # Get all table.column names
@@ -50,13 +49,10 @@ class Engine:
 
         # Format to fit the transform and predict model pipeline
         # TODO: have a specific canal
-        sources = [
-            ("unknown", table_column, 1) for table_column in table_column_names
-        ]
+        sources = [("unknown", table_column, 1) for table_column in table_column_names]
         datasets, _labels = train.spec_from_source(sources)
 
         return datasets, _labels
-
 
     def initialise(self, force_retrain=False):
         """
@@ -101,7 +97,9 @@ class Engine:
                 datasets, _ = Engine.build_datasets(connection)
                 logging.warning("Fetch columns...")
                 # TODO: change dataset_size back to 100
-                test_columns = fetch_columns(datasets, dataset_size=1, connection=connection)
+                test_columns = fetch_columns(
+                    datasets, dataset_size=1, connection=connection
+                )
 
                 # Train and classify each model
                 for model_type in model_types:
@@ -120,12 +118,14 @@ class Engine:
                 ## Store pickle file
                 logging.warning("Saving results...")
                 with open(pickle_file, "wb") as file:
-                    pickle.dump({
-                        "dependency_graph": self.dependency_graph,
-                        "models": self.models,
-                        "classifications": self.classifications
-                    }, file)
-
+                    pickle.dump(
+                        {
+                            "dependency_graph": self.dependency_graph,
+                            "models": self.models,
+                            "classifications": self.classifications,
+                        },
+                        file,
+                    )
 
     def score(self, resource_type, parent_table=None, column_name=None, max_results=10):
         """

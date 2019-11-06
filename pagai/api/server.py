@@ -8,12 +8,13 @@ from pagai.api.errors.operation_outcome import OperationOutcome
 from pagai.engine import Engine
 
 
-api = Blueprint('api', __name__)
+api = Blueprint("api", __name__)
 engines = dict()
 SAVE_PATH = "build"
 
-@api.route("/init/<database_name>", methods=['GET'])
-@api.route("/init/<database_name>/<force_retrain>", methods=['GET'])
+
+@api.route("/init/<database_name>", methods=["GET"])
+@api.route("/init/<database_name>/<force_retrain>", methods=["GET"])
 def init(database_name, force_retrain=False):
     """
     Endpoint for analysing database.
@@ -32,7 +33,7 @@ def init(database_name, force_retrain=False):
     return "success", 200
 
 
-@api.route("/retrain/<database_name>", methods=['GET'])
+@api.route("/retrain/<database_name>", methods=["GET"])
 def retrain(database_name):
     """
     Force build dependency graph, train model and predict classes.
@@ -48,7 +49,7 @@ def retrain(database_name):
     return "success", 200
 
 
-@api.route("/search/<database_name>/<resource_type>", methods=['GET'])
+@api.route("/search/<database_name>/<resource_type>", methods=["GET"])
 def search(database_name, resource_type):
     """
     Handle search calls by resource_type, keywords, etc.
@@ -59,20 +60,25 @@ def search(database_name, resource_type):
     return columns, 200
 
 
-@api.route("/beta/search/<database_name>/<resource_type>", methods=['GET'])
-@api.route("/beta/search/<database_name>/<resource_type>/<head_table>", methods=['GET'])
-@api.route("/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>", methods=['GET'])
+@api.route("/beta/search/<database_name>/<resource_type>", methods=["GET"])
+@api.route("/beta/search/<database_name>/<resource_type>/<head_table>", methods=["GET"])
+@api.route(
+    "/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>",
+    methods=["GET"],
+)
 def betasearch(database_name, resource_type, head_table=None, column_name=None):
     """
     Return columns which have the desired resource type.
     """
     engine = engines[database_name]
-    columns = engine.score(resource_type, parent_table=head_table, column_name=column_name)
+    columns = engine.score(
+        resource_type, parent_table=head_table, column_name=column_name
+    )
 
     return columns
 
 
-@api.route("/state/<database_name>",methods=['GET'])
+@api.route("/state/<database_name>", methods=["GET"])
 def state(database_name):
     """
     Endpoint for retrieving the state of the data-base.
@@ -99,10 +105,14 @@ app = Flask(__name__)
 app.register_blueprint(api)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Load .env config file for entire environement
-    configFileName = './pagai/.env.dev.custom' if os.path.exists('./pagai/.env.dev.custom') else './pagai/.env.dev.default'
+    configFileName = (
+        "./pagai/.env.dev.custom"
+        if os.path.exists("./pagai/.env.dev.custom")
+        else "./pagai/.env.dev.default"
+    )
     load_dotenv(dotenv_path=configFileName)
 
     # Start application
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host="0.0.0.0")

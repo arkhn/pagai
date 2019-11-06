@@ -102,13 +102,13 @@ def get_table_names(connection=None):
 
     # If PG_DB_SCHEMA is not "", then use it.
     # It prevents fetching tables which belong to pg_catalog or information_schema
-    if os.getenv('PG_DB_SCHEMA'):
+    if os.getenv("PG_DB_SCHEMA"):
         query = f"SELECT table_name FROM information_schema.tables WHERE table_schema='{os.getenv('PG_DB_SCHEMA')}';"
     all_table_names = run(query, connection)
 
     # Filter out all table names which belong to a partition
     # and keep only partition name
-    partition_query = ("""
+    partition_query = """
 WITH partitions AS (SELECT
     string_agg(child.relname, ', ') AS tables,
     inhparent
@@ -117,12 +117,14 @@ FROM pg_inherits
 GROUP BY inhparent)
 SELECT tables, parent.relname
 FROM partitions
-JOIN pg_class parent ON inhparent = parent.oid;""")
+JOIN pg_class parent ON inhparent = parent.oid;"""
     partitions = run(partition_query, connection)
 
     for partition in partitions:
-        partition_table_names = partition[0].split(', ')
-        all_table_names = list(filter(lambda x: x[0] not in partition_table_names, all_table_names))
+        partition_table_names = partition[0].split(", ")
+        all_table_names = list(
+            filter(lambda x: x[0] not in partition_table_names, all_table_names)
+        )
 
     tables = np.array(all_table_names).T[0]
 
@@ -170,34 +172,27 @@ def get_column(table, column, limit=None, order=None, connection=None):
     table_len = get_length(table, connection)
     limit = limit or max(5000, round(table_len ** (2 / 3)))
     order = order or "RANDOM()"
-    query = (
-        f"SELECT {column} "
-        f"FROM {table} "
-        f"ORDER BY {order}"
-        f"LIMIT {limit}"
-    )
+    query = f"SELECT {column} " f"FROM {table} " f"ORDER BY {order}" f"LIMIT {limit}"
     results = run(query, connection)
     results = set([res[0] for res in results])
 
     return results
 
+
 storage = {}
+
+
 def get_column_fast(table, column, limit=None, order=None, connection=None):
     # Build identifier based on args and kwargs
     identifier = f"{table}:{limit}:{order}"
 
     # Search storage based on identifier
     if identifier not in storage:
-        print('compute')
+        print("compute")
         table_len = get_length(table, connection)
         limit = limit or max(5000, round(table_len ** (2 / 3)))
         order = order or "RANDOM()"
-        query = (
-            f"SELECT * "
-            f"FROM {table} "
-            f"ORDER BY {order}"
-            f"LIMIT {limit}"
-        )
+        query = f"SELECT * FROM {table} ORDER BY {order} LIMIT {limit}"
         results = run(query, connection)
 
         columns = get_column_names(table, connection)
@@ -208,7 +203,7 @@ def get_column_fast(table, column, limit=None, order=None, connection=None):
         for idx, col in enumerate(columns):
             storage[identifier][col] = results[:, idx]
     else:
-        print('cached')
+        print("cached")
     return storage[identifier][column]
 
 
@@ -224,7 +219,7 @@ def fetch_columns(datasets, dataset_size, connection=None):
     columns = []
     print(len(datasets), "datasets")
     for i, dataset in enumerate(datasets):
-        print(i, '/', len(datasets))
+        print(i, "/", len(datasets))
         table_column_name, nb_datasets = dataset
         table, column = table_column_name.split(".")
 
@@ -241,7 +236,7 @@ def fetch_columns(datasets, dataset_size, connection=None):
         limit = dataset_size * nb_datasets
 
         # Call the cached method to get samples of the database
-        print(table, ':', column, '?', end='\t')
+        print(table, ":", column, "?", end="\t")
         sampled_rows = get_column_fast(table, column, limit, order, connection)
 
         if len(sampled_rows) == 0:
@@ -262,17 +257,15 @@ def fetch_columns(datasets, dataset_size, connection=None):
             elif isinstance(row, datetime.date):
                 sampled_rows[i] = row.isoformat()
             else:
-                raise TypeError("Format of row is not supported", type(row), row, sampled_rows)
+                raise TypeError(
+                    "Format of row is not supported", type(row), row, sampled_rows
+                )
 
         # Choose table rows ids with a uniform sampling with replacement strategy
-        datasets_virtual_ids = np.random.randint(
-            0, n_rows, (nb_datasets, dataset_size)
-        )
+        datasets_virtual_ids = np.random.randint(0, n_rows, (nb_datasets, dataset_size))
 
         # List all unique ids selected
-        virtual_unique_ids = list(
-            set(datasets_virtual_ids.reshape(1, -1)[0].tolist())
-        )
+        virtual_unique_ids = list(set(datasets_virtual_ids.reshape(1, -1)[0].tolist()))
 
         # Map ids to real row indices of sampled_rows
         virtual_sampled_mapping = {
@@ -304,5 +297,3 @@ def has_frequency(table, connection=None):
     )
     result = run(query, connection)
     return len(result) > 0
-
-

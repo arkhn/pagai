@@ -3,7 +3,12 @@ import os
 import re
 
 from pagai.engine.structure import Graph
-from pagai.queries.postgres import get_table_names, get_column_names, get_table, get_column
+from pagai.queries.postgres import (
+    get_table_names,
+    get_column_names,
+    get_table,
+    get_column,
+)
 
 
 EXCLUDE_COLUMNS = ["id", "row_id"]
@@ -12,7 +17,6 @@ EXCLUDE_COLUMNS = ["id", "row_id"]
 class DependencyGraphBuilder:
     def __init__(self):
         self.id_like_columns_tables = {}
-
 
     def is_id_like_column(self, column):
         """
@@ -31,11 +35,10 @@ class DependencyGraphBuilder:
             if all(re.search(r"^\w+$", el) is not None for el in column):
                 # TODO: Check ratio of unique values
                 unique_values = list(set(column))
-                if len(unique_values) < int(os.getenv('STR_ID_MAX_UNIQUE_VALUES')):
+                if len(unique_values) < int(os.getenv("STR_ID_MAX_UNIQUE_VALUES")):
                     return True
 
         return False
-
 
     def find_id_like_columns(self, table, connection):
         """
@@ -46,7 +49,9 @@ class DependencyGraphBuilder:
 
         id_like_columns = []
 
-        column_infos = get_column_names(table, connection=connection, include_data_type=True)
+        column_infos = get_column_names(
+            table, connection=connection, include_data_type=True
+        )
         column_names = []
         column_types = []
         for column_name, column_type in column_infos:
@@ -59,16 +64,12 @@ class DependencyGraphBuilder:
             column_names, column_types, columns
         ):
             # Column should be "like" a primary key or id column, but not in some forbidden columns
-            if (
-                self.is_id_like_column(column)
-                and column_name not in EXCLUDE_COLUMNS
-            ):
+            if self.is_id_like_column(column) and column_name not in EXCLUDE_COLUMNS:
                 id_like_columns.append((column_name, column_type))
 
         self.id_like_columns_tables[table] = id_like_columns
 
         return id_like_columns
-
 
     def table_compatibility(
         self, left_table, left_column, right_table, join_datatype, connection
@@ -77,7 +78,7 @@ class DependencyGraphBuilder:
         State whether right_table could be join with left_table on left_table.left_column
         """
 
-        include_threshold = float(os.getenv('INCLUDE_THRESHOLD'))
+        include_threshold = float(os.getenv("INCLUDE_THRESHOLD"))
 
         right_columns = self.find_id_like_columns(right_table, connection)
 
@@ -87,9 +88,7 @@ class DependencyGraphBuilder:
         for right_column, column_type in right_columns:
             # Check left_column and right_column have same type
             if column_type == join_datatype:
-                right_column_data = get_column(
-                    right_table, right_column, connection
-                )
+                right_column_data = get_column(right_table, right_column, connection)
 
                 n_included_el = 0
                 for left_el in left_column_data:
@@ -108,7 +107,6 @@ class DependencyGraphBuilder:
 
         return acceptable_right_columns
 
-
     def find_compatible_tables(self, table, id_column, id_column_type, connection):
         """
         Return the names of the tables which could be joined on table.id_column
@@ -126,7 +124,6 @@ class DependencyGraphBuilder:
 
         return compatible_tables
 
-
     def find_joinable_tables(self, table, connection):
         """
         Return the names of the table which could be in a join with the given table
@@ -142,7 +139,6 @@ class DependencyGraphBuilder:
                 joinable_tables[id_column] = compatible_tables
 
         return joinable_tables
-
 
     def build_dependency_graph(self, connection):
         graph = Graph()

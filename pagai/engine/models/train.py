@@ -49,10 +49,7 @@ def train(columns, labels, model_type="ngram"):
     :param model: which model to use
     :return: the model train, with classification performed.
     """
-    models = {
-        "ngram": ngram.NGramClassifier,
-        "rnn": rnn.RNNClassifier
-    }
+    models = {"ngram": ngram.NGramClassifier, "rnn": rnn.RNNClassifier}
     model = models[model_type]()
 
     logging.warning("Preprocessing data...")

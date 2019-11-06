@@ -1,7 +1,7 @@
 import logging
 
-from queries.postgres import fetch_columns
-from engine.models import ngram, rnn
+from pagai.services.postgres import fetch_columns
+from pagai.engine.models import rnn, ngram
 
 # This is the training set, also used for testing and giving a score estimate
 # works as follows (RESOURCE_TYPE, TABLE.COLUMN, NB_DATASETS)

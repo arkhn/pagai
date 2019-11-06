@@ -3,7 +3,7 @@ import re
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from engine.models.base import BaseClassifier
+from pagai.engine.models.base import BaseClassifier
 from .utils import *
 
 

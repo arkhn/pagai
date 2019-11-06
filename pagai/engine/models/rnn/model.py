@@ -1,7 +1,7 @@
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-from engine.models.base import BaseClassifier
+from pagai.engine.models.base import BaseClassifier
 from .utils import *
 
 

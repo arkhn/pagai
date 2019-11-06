@@ -1,4 +1,4 @@
-from engine.structure import Column
+from pagai.engine.structure import Column
 
 
 def classify(model, columns, labels=None):

@@ -1,4 +1,4 @@
-from queries.postgres.main import (
+from pagai.services.postgres.main import (
     fetch_columns,
     get_table_names,
     get_column_names,

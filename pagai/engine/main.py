@@ -5,12 +5,12 @@ import os
 import pickle
 import psycopg2
 
-from engine.dependency import DependencyGraphBuilder
-from engine.models import train, predict
-from engine.structure import Graph
-from engine.models import SAVE_PATH
+from pagai.engine.dependency import DependencyGraphBuilder
+from pagai.engine.models import train, predict
+from pagai.engine.structure import Graph
+from pagai.engine.models import SAVE_PATH
 
-from queries.postgres import fetch_columns, get_table_names, get_column_names
+from pagai.services.postgres import fetch_columns, get_table_names, get_column_names
 
 
 prod_db_params = {

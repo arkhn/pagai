@@ -4,9 +4,9 @@ from dotenv import load_dotenv
 from flask import Flask, Blueprint, jsonify
 from pathlib import Path
 
-from api.errors.operation_outcome import OperationOutcome
-from engine import Engine
-from engine.models import SAVE_PATH
+from pagai.errors import OperationOutcome
+from pagai.engine import Engine
+from pagai.engine.models import SAVE_PATH
 
 api = Blueprint("api", __name__)
 engines = dict()
@@ -96,18 +96,3 @@ def state(database_name):
 @api.errorhandler(OperationOutcome)
 def handle_bad_request(e):
     return str(e), 400
-
-
-app = Flask(__name__)
-app.register_blueprint(api)
-
-
-if __name__ == "__main__":
-    # Load .env config file for entire environement
-    configFileName = (
-        ".env.dev.custom" if os.path.exists(".env.dev.custom") else ".env.dev.default"
-    )
-    load_dotenv(dotenv_path=configFileName)
-
-    # Start application
-    app.run(debug=True, host="0.0.0.0")

@@ -3,3 +3,4 @@ notebooks
 .idea
 .git
 .gitignore
+.travis.yml

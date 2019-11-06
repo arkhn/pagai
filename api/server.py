@@ -1,16 +1,15 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, Blueprint
+from flask import Flask, Blueprint, jsonify
 from pathlib import Path
 
 from api.errors.operation_outcome import OperationOutcome
 from engine import Engine
-
+from engine.models import SAVE_PATH
 
 api = Blueprint("api", __name__)
 engines = dict()
-SAVE_PATH = "build"
 
 
 @api.route("/init/<database_name>", methods=["GET"])
@@ -30,7 +29,7 @@ def init(database_name, force_retrain=False):
         print("engine.init crashed beautifully")
         return "error", 500
 
-    return "success", 200
+    return jsonify({"response": "success"})
 
 
 @api.route("/retrain/<database_name>", methods=["GET"])
@@ -46,7 +45,7 @@ def retrain(database_name):
         print("retraining crashed beautifully")
         return "error", 500
 
-    return "success", 200
+    return jsonify({"response": "success"})
 
 
 @api.route("/search/<database_name>/<resource_type>", methods=["GET"])
@@ -57,7 +56,7 @@ def search(database_name, resource_type):
     engine = engines[database_name]
     columns = engine.score(resource_type)
 
-    return columns, 200
+    return jsonify(columns)
 
 
 @api.route("/beta/search/<database_name>/<resource_type>", methods=["GET"])
@@ -75,7 +74,7 @@ def betasearch(database_name, resource_type, head_table=None, column_name=None):
         resource_type, parent_table=head_table, column_name=column_name
     )
 
-    return columns
+    return jsonify(columns)
 
 
 @api.route("/state/<database_name>", methods=["GET"])
@@ -89,11 +88,9 @@ def state(database_name):
 
     # Check if model is already trained
     if pickle_file.is_file():
-        print("trained model")
-        return "trained"
+        return jsonify({"status": "trained"})
     else:
-        print("untrained model or unknown database")
-        return "untrained or unknown database name"
+        return jsonify({"status": "unknown or training"})
 
 
 @api.errorhandler(OperationOutcome)

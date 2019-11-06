@@ -8,9 +8,10 @@ import psycopg2
 from engine.dependency import DependencyGraphBuilder
 from engine.models import train, predict
 from engine.structure import Graph
+from engine.models import SAVE_PATH
+
 from queries.postgres import fetch_columns, get_table_names, get_column_names
 
-SAVE_PATH = "models"
 
 prod_db_params = {
     "host": os.getenv("DB_HOST"),
@@ -69,7 +70,8 @@ class Engine:
         # Check model isn't already trained
         if pickle_file.is_file() and not force_retrain:
             logging.warning("Engine already initiated. Loading engine...")
-            engine = pickle.load(pickle_file)
+            with open(pickle_file, "rb") as file:
+                engine = pickle.load(file)
             self.dependency_graph = engine["dependency_graph"]
             self.models = engine["models"]
             self.classifications = engine["classifications"]
@@ -109,6 +111,7 @@ class Engine:
                     self.models[model_type] = model
                     # Classify
                     classification = predict.classify(model, test_columns)
+                    model.classification = classification
                     self.classifications[model_type] = classification
 
                 # Store dependency graph, trained models, and predictions
@@ -126,6 +129,9 @@ class Engine:
                         },
                         file,
                     )
+
+                with open(pickle_file, "rb") as file:
+                    _ = pickle.load(file)
 
     def score(self, resource_type, parent_table=None, column_name=None, max_results=10):
         """

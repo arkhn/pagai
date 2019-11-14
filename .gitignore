@@ -1,9 +1,10 @@
 conf.custom.yml
 .env.dev.custom
 .vscode
-models
-
+./models
+notebooks/
 notebooks/data/
+
 # config.yml
 
 .DS_Store

@@ -1,1 +1,3 @@
-from engine.models import train, predict
+from pagai.engine.models import train, predict
+
+SAVE_PATH = "pickle"

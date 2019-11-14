@@ -25,7 +25,7 @@ class BaseClassifier(nn.Module):
             else:
                 column.score = 1
                 logging.warning("No ResourceType was provided")
-            if column.score > float(os.getenv('MIN_SCORE')):
+            if column.score > float(os.getenv("MIN_SCORE")):
                 column.data = column.data[:max_col_len]
                 results.append(column)
 

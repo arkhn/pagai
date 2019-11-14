@@ -5,12 +5,13 @@ import os
 import pickle
 import psycopg2
 
-from engine.dependency import DependencyGraphBuilder
-from engine.models import train, predict
-from engine.structure import Graph
-from queries.postgres import fetch_columns, get_table_names, get_column_names
+from pagai.engine.dependency import DependencyGraphBuilder
+from pagai.engine.models import train, predict
+from pagai.engine.structure import Graph
+from pagai.engine.models import SAVE_PATH
 
-SAVE_PATH = "models"
+from pagai.services.postgres import fetch_columns, get_table_names, get_column_names
+
 
 prod_db_params = {
     "host": os.getenv("DB_HOST"),
@@ -37,7 +38,6 @@ class Engine:
         self.models = {}
         self.classifications = {}
 
-
     @staticmethod
     def build_datasets(connection):
         # Get all table.column names
@@ -50,13 +50,10 @@ class Engine:
 
         # Format to fit the transform and predict model pipeline
         # TODO: have a specific canal
-        sources = [
-            ("unknown", table_column, 1) for table_column in table_column_names
-        ]
+        sources = [("unknown", table_column, 1) for table_column in table_column_names]
         datasets, _labels = train.spec_from_source(sources)
 
         return datasets, _labels
-
 
     def initialise(self, force_retrain=False):
         """
@@ -68,12 +65,13 @@ class Engine:
         """
 
         pickle_path = f"{SAVE_PATH}/{self.database_name}.pickle"
-        pickle_file = Path(pickle_path)
+        pickle_path = Path(pickle_path)
 
         # Check model isn't already trained
-        if pickle_file.is_file() and not force_retrain:
+        if pickle_path.is_file() and not force_retrain:
             logging.warning("Engine already initiated. Loading engine...")
-            engine = pickle.load(pickle_file)
+            with open(pickle_path, "rb") as pickle_file:
+                engine = pickle.load(pickle_file)
             self.dependency_graph = engine["dependency_graph"]
             self.models = engine["models"]
             self.classifications = engine["classifications"]
@@ -84,6 +82,7 @@ class Engine:
                 # Load discovery module to build dependency graph
                 logging.warning("Building the dependency graph...")
                 dependency_graph_builder = DependencyGraphBuilder()
+                # TODO build the dependency graph
                 # self.dependency_graph = dependency_graph_builder.build_dependency_graph(connection)
                 self.dependency_graph = Graph()
 
@@ -101,7 +100,9 @@ class Engine:
                 datasets, _ = Engine.build_datasets(connection)
                 logging.warning("Fetch columns...")
                 # TODO: change dataset_size back to 100
-                columns = fetch_columns(datasets, dataset_size=1, connection=connection)
+                test_columns = fetch_columns(
+                    datasets, dataset_size=1, connection=connection
+                )
 
                 # Train and classify each model
                 for model_type in model_types:
@@ -110,7 +111,8 @@ class Engine:
                     model = train.train(columns, labels, model_type)
                     self.models[model_type] = model
                     # Classify
-                    classification = predict.classify(model, columns)
+                    classification = predict.classify(model, test_columns)
+                    model.classification = classification
                     self.classifications[model_type] = classification
 
                 # Store dependency graph, trained models, and predictions
@@ -120,12 +122,17 @@ class Engine:
                 ## Store pickle file
                 logging.warning("Saving results...")
                 with open(pickle_file, "wb") as file:
-                    pickle.dump({
-                        "dependency_graph": self.dependency_graph,
-                        "models": self.models,
-                        "classifications": self.classifications
-                    }, file)
+                    pickle.dump(
+                        {
+                            "dependency_graph": self.dependency_graph,
+                            "models": self.models,
+                            "classifications": self.classifications,
+                        },
+                        file,
+                    )
 
+                with open(pickle_file, "rb") as file:
+                    _ = pickle.load(file)
 
     def score(self, resource_type, parent_table=None, column_name=None, max_results=10):
         """

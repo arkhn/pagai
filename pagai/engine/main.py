@@ -65,13 +65,13 @@ class Engine:
         """
 
         pickle_path = f"{SAVE_PATH}/{self.database_name}.pickle"
-        pickle_file = Path(pickle_path)
+        pickle_path = Path(pickle_path)
 
         # Check model isn't already trained
-        if pickle_file.is_file() and not force_retrain:
+        if pickle_path.is_file() and not force_retrain:
             logging.warning("Engine already initiated. Loading engine...")
-            with open(pickle_file, "rb") as file:
-                engine = pickle.load(file)
+            with open(pickle_path, "rb") as pickle_file:
+                engine = pickle.load(pickle_file)
             self.dependency_graph = engine["dependency_graph"]
             self.models = engine["models"]
             self.classifications = engine["classifications"]
@@ -82,6 +82,7 @@ class Engine:
                 # Load discovery module to build dependency graph
                 logging.warning("Building the dependency graph...")
                 dependency_graph_builder = DependencyGraphBuilder()
+                # TODO build the dependency graph
                 # self.dependency_graph = dependency_graph_builder.build_dependency_graph(connection)
                 self.dependency_graph = Graph()
 

@@ -9,10 +9,8 @@ app.register_blueprint(api)
 
 
 if __name__ == "__main__":
-    # Load .env config file for entire environement
-    configFileName = (
-        ".env.dev.custom" if os.path.exists(".env.dev.custom") else ".env.dev.default"
-    )
+    # Load .env config file for entire environment
+    configFileName = os.getenv("CONFIG_PATH", ".env.dev.default")
     load_dotenv(dotenv_path=configFileName)
 
     # Start application

@@ -13,7 +13,7 @@ A staging version of Pagai is available through its web client here: [https://py
 ## Get started
 
 - Set up and start your virtualenv
-- Launch the server: `python api/server.py`
+- Launch the server: `CONFIG_PATH=<env_path> python pagai/__init__.py `
 - Visit `http://localhost:5000/init/<database_name>` to start database analysis
 
 ## The concept

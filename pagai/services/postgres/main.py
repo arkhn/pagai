@@ -126,7 +126,6 @@ JOIN pg_class parent ON inhparent = parent.oid;"""
             filter(lambda x: x[0] not in partition_table_names, all_table_names)
         )
 
-    print(np.array(all_table_names))
     tables = np.array(all_table_names).T[0]
 
     return tables
@@ -173,7 +172,7 @@ def get_column(table, column, limit=None, order=None, connection=None):
     table_len = get_length(table, connection)
     limit = limit or max(5000, round(table_len ** (2 / 3)))
     order = order or "RANDOM()"
-    query = f"SELECT {column} " f"FROM {table} " f"ORDER BY {order}" f"LIMIT {limit}"
+    query = f"SELECT {column} FROM {table} ORDER BY {order} LIMIT {limit}"
     results = run(query, connection)
     results = set([res[0] for res in results])
 
@@ -205,6 +204,7 @@ def get_column_fast(table, column, limit=None, order=None, connection=None):
             storage[identifier][col] = results[:, idx]
     else:
         print("cached")
+
     return storage[identifier][column]
 
 

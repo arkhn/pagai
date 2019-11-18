@@ -1,7 +1,8 @@
 import logging
 
 from pagai.services.postgres import fetch_columns
-from pagai.engine.models import rnn, ngram
+from pagai.engine.models.ngram import NGramClassifier
+from pagai.engine.models.rnn import RNNClassifier
 
 # This is the training set, also used for testing and giving a score estimate
 # works as follows (RESOURCE_TYPE, TABLE.COLUMN, NB_DATASETS)
@@ -49,7 +50,7 @@ def train(columns, labels, model_type="ngram"):
     :param model: which model to use
     :return: the model train, with classification performed.
     """
-    models = {"ngram": ngram.NGramClassifier, "rnn": rnn.RNNClassifier}
+    models = {"ngram": NGramClassifier, "rnn": RNNClassifier}
     model = models[model_type]()
 
     logging.warning("Preprocessing data...")

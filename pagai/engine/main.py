@@ -99,9 +99,8 @@ class Engine:
                 logging.warning("Build datasets...")
                 datasets, _ = Engine.build_datasets(connection)
                 logging.warning("Fetch columns...")
-                # TODO: change dataset_size back to 100
                 test_columns = fetch_columns(
-                    datasets, dataset_size=1, connection=connection
+                    datasets, dataset_size=100, connection=connection
                 )
 
                 # Train and classify each model
@@ -120,6 +119,7 @@ class Engine:
                 if not os.path.exists(os.path.dirname(pickle_path)):
                     os.makedirs(os.path.dirname(pickle_path))
                 ## Store pickle file
+                pickle_file = "pickle/model.pickle"
                 logging.warning("Saving results...")
                 with open(pickle_file, "wb") as file:
                     pickle.dump(

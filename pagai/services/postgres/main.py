@@ -222,9 +222,6 @@ def fetch_columns(datasets, dataset_size, connection=None):
     for i, dataset in enumerate(datasets):
         print(i, "/", len(datasets))
 
-        if i > 10:
-            continue
-
         table_column_name, nb_datasets = dataset
         table, column = table_column_name.split(".")
 

@@ -13,7 +13,7 @@ A staging version of Pagai is available through its web client here: [https://py
 ## Get started
 
 - Set up and start your virtualenv
-- Launch the server: `CONFIG_PATH=<env_path> python pagai/__init__.py `
+- Launch the server: `CONFIG_PATH=<env_path> python pagai/__init__.py`
 - Visit `http://localhost:5000/init/<database_name>` to start database analysis
 
 ## The concept
@@ -35,14 +35,16 @@ The **dependency graph** builder finds links between tables within a database, b
 Merging this two tools is the real strength of the pagai project. Indeed it is possible to query the database with the engine to retrieve interesting columns. The search is based on a score allocated to each column, which depends on the relevance of the functional type and the distance in the dependency graph to the table we're considering (like `patient` for example). In addition, we have also added a fuzzy matching algorithm on the table and column name to update the score and return the most relevant columns.
 
 With this, we can answer questions like:
- - "Give me the date of birth of patient"
-   > Api call `api/search/date/patient/birth`
- - "Give me the relation type between the patient and its contact person (husband, child, etc)"
-   > Api call `api/search/code/patient/relation`
-   
- NB: We mean the location of the column which has this information
- 
- The api syntax is explained in the next section.
+
+- "Give me the date of birth of patient"
+  > Api call `api/search/date/patient/birth`
+- "Give me the relation type between the patient and its contact person (husband, child, etc)"
+
+  > Api call `api/search/code/patient/relation`
+
+NB: We mean the location of the column which has this information
+
+The api syntax is explained in the next section.
 
 ## The api
 
@@ -51,6 +53,7 @@ To make this tool easy to use for the largest number of people, with have built 
     api/search/<functional_type>/<reference_table>/<keyword_column>
 
 Parameters:
+
 - **functional_type**: `firstname`, `name`, `address`, `city`, `id`, `date`, `code` and those of your imagination
 - **reference_table**: the reference table for the dependency graph (`patient` in the examples above)
 - **keyword_column**: keywords to match column or table names with fuzzy matching (ex: `birth`-> `birthdate`)
@@ -65,9 +68,8 @@ Feel free to contact us on Slack in you have trouble with the project.
 
 If you're enthusiastic about our project, :star: it to show your support! :heart:
 
-* * *
+---
 
 ## License
 
 [Apache License 2.0](https://github.com/OpenMined/PySyft/blob/master/LICENSE)
-

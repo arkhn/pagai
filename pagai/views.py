@@ -1,14 +1,19 @@
-import os
-
-from dotenv import load_dotenv
-from flask import Flask, Blueprint, jsonify
+from flask import Blueprint, jsonify, request
+from flask_cors import CORS
 from pathlib import Path
+import psycopg2
 
 from pagai.errors import OperationOutcome
 from pagai.engine import Engine
 from pagai.engine.models import SAVE_PATH
+from pagai.services import postgres
+from pagai.services import pyrog
 
 api = Blueprint("api", __name__)
+# enable Cross-Origin Resource Sharing
+# "Allow-Control-Allow-Origin" HTTP header
+CORS(api)
+
 engines = dict()
 
 
@@ -41,7 +46,7 @@ def retrain(database_name):
     try:
         engine = engines[database_name]
         engine.initialise(force_retrain=True)
-    except:
+    except Exception:
         print("retraining crashed beautifully")
         return "error", 500
 
@@ -62,17 +67,14 @@ def search(database_name, resource_type):
 @api.route("/beta/search/<database_name>/<resource_type>", methods=["GET"])
 @api.route("/beta/search/<database_name>/<resource_type>/<head_table>", methods=["GET"])
 @api.route(
-    "/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>",
-    methods=["GET"],
+    "/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>", methods=["GET"],
 )
 def betasearch(database_name, resource_type, head_table=None, column_name=None):
     """
     Return columns which have the desired resource type.
     """
     engine = engines[database_name]
-    columns = engine.score(
-        resource_type, parent_table=head_table, column_name=column_name
-    )
+    columns = engine.score(resource_type, parent_table=head_table, column_name=column_name)
 
     return jsonify(columns)
 
@@ -93,6 +95,37 @@ def state(database_name):
         return jsonify({"status": "unknown or training"})
 
 
+@api.route("/explore/<credential_id>/<table>", methods=["GET"])
+def explore(credential_id, table):
+    """
+    Database exploration: returns the first rows of
+    a database table. The db credentials are retrieved from
+    Pyrog. The number of returned rows may be specified using
+    query params (eg: /explore/<db>/<table>?first=10).
+    """
+    credentials = pyrog.get_credentials(credential_id)
+    limit = request.args.get("first", 10, type=int)
+    schema = request.args.get("schema")
+
+    def explore_postgres():
+        try:
+            with postgres.from_pyrog_credentials(credentials) as connection:
+                return postgres.explore(table, connection=connection, limit=limit, schema=schema)
+        except psycopg2.OperationalError as e:
+            raise OperationOutcome(f"Could not connect to the postgres database: {e}")
+
+    # switch on the possible db models and process the exploration query in a dedicated handler
+    # if the db model is not supported, an error is raised.
+    db_handlers = {"POSTGRES": explore_postgres}
+    try:
+        handler = db_handlers[credentials.get("model")]
+        results = handler()
+    except KeyError:
+        raise OperationOutcome(f"Database type {credentials.get('model')} is unknown")
+
+    return jsonify(results)
+
+
 @api.errorhandler(OperationOutcome)
 def handle_bad_request(e):
-    return str(e), 400
+    return jsonify({"error": str(e)}), 400

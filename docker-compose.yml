@@ -1,9 +1,11 @@
-version: '3'
+version: "3"
 
 services:
   pagai:
+    image: arkhn/pagai:latest
     build:
-      context: ./pagai
+      context: .
+    env_file: .env.docker
     volumes:
       - ./models:/srv/pagai/models
     ports:

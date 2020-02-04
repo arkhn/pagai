@@ -99,9 +99,7 @@ class Engine:
                 logging.warning("Build datasets...")
                 datasets, _ = Engine.build_datasets(connection)
                 logging.warning("Fetch columns...")
-                test_columns = fetch_columns(
-                    datasets, dataset_size=100, connection=connection
-                )
+                test_columns = fetch_columns(datasets, dataset_size=100, connection=connection)
 
                 # Train and classify each model
                 for model_type in model_types:
@@ -150,9 +148,7 @@ class Engine:
         # If a parent table is provided, down vote the tables that are "far" from the parent table
         if parent_table is not None:
             for column in columns:
-                distance = self.dependency_graph.get_distance(
-                    parent_table, column.table
-                )
+                distance = self.dependency_graph.get_distance(parent_table, column.table)
                 column.score *= 2 ** (-distance)
 
         # If column_name is provided, up vote columns that fit with it

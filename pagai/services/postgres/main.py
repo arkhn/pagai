@@ -1,9 +1,10 @@
-from tqdm import tqdm
 import datetime
 import numpy as np
 import os
 import psycopg2
 import random
+
+from pagai.errors import OperationOutcome
 
 
 def cache(request):
@@ -80,6 +81,18 @@ def execute(queries, connection):
     return results
 
 
+def from_pyrog_credentials(credentials: dict):
+    return psycopg2.connect(
+        **{
+            "host": credentials.get("host"),
+            "port": credentials.get("port"),
+            "dbname": credentials.get("database"),
+            "user": credentials.get("login"),
+            "password": credentials.get("password"),
+        }
+    )
+
+
 @cache
 def get_length(table, connection=None):
     """
@@ -103,7 +116,8 @@ def get_table_names(connection=None):
     # If PG_DB_SCHEMA is not "", then use it.
     # It prevents fetching tables which belong to pg_catalog or information_schema
     if os.getenv("PG_DB_SCHEMA"):
-        query = f"SELECT table_name FROM information_schema.tables WHERE table_schema='{os.getenv('PG_DB_SCHEMA')}';"
+        query = f"SELECT table_name FROM information_schema.tables "
+        f"WHERE table_schema='{os.getenv('PG_DB_SCHEMA')}';"
     all_table_names = run(query, connection)
 
     # Filter out all table names which belong to a partition
@@ -122,28 +136,44 @@ JOIN pg_class parent ON inhparent = parent.oid;"""
 
     for partition in partitions:
         partition_table_names = partition[0].split(", ")
-        all_table_names = list(
-            filter(lambda x: x[0] not in partition_table_names, all_table_names)
-        )
-
+        all_table_names = [name for name in all_table_names if name[0] not in partition_table_names]
     tables = np.array(all_table_names).T[0]
 
     return tables
 
 
 @cache
-def get_table(table, connection=None, limit=1000):
+def explore(table, connection, limit, schema=None):
+    """
+    Returns the first rows of a table alongside the column names.
+    """
+    try:
+        return {
+            "fields": get_column_names(table, schema=schema, connection=connection).tolist(),
+            "rows": get_table(table, schema=schema, connection=connection, limit=limit).tolist(),
+        }
+    except psycopg2.OperationalError as e:
+        raise OperationOutcome(e)
+    except psycopg2.errors.UndefinedTable:
+        raise OperationOutcome(f"Table {table} does not exist in database")
+
+
+@cache
+def get_table(table, connection=None, limit=1000, schema=None):
     """
     Return content of a table with a limit
     """
-    query = "SELECT * FROM {} ORDER BY RANDOM() LIMIT {};".format(table, limit)
+    if schema:
+        table = f'"{schema}"."{table}"'
+
+    query = f"SELECT * FROM {table} ORDER BY RANDOM() LIMIT {limit};"
     results = run(query, connection)
     results = np.array(results)
     return results
 
 
 @cache
-def get_column_names(table, connection=None, include_data_type=False):
+def get_column_names(table, connection=None, include_data_type=False, schema=None):
     """
     Return column names of a table
     """
@@ -151,15 +181,18 @@ def get_column_names(table, connection=None, include_data_type=False):
     if include_data_type:
         info.append("data_type")
     query = (
-        "SELECT {} "
+        f"SELECT {', '.join(info)} "
         "FROM information_schema.columns "
-        "WHERE table_name='{}';".format(", ".join(info), table)
+        f"WHERE table_name='{table}'"
     )
+    if schema:
+        query = f"{query} AND table_schema='{schema}'"
+
     result = run(query, connection)
     if include_data_type:
         columns = result
     else:
-        columns = np.array(result).T[0]
+        columns = np.array(result).T[0] if len(result) > 0 else np.array(result)
     return columns
 
 
@@ -259,9 +292,7 @@ def fetch_columns(datasets, dataset_size, connection=None):
             elif isinstance(row, datetime.date):
                 sampled_rows[i] = row.isoformat()
             else:
-                raise TypeError(
-                    "Format of row is not supported", type(row), row, sampled_rows
-                )
+                raise TypeError("Format of row is not supported", type(row), row, sampled_rows)
 
         # Choose table rows ids with a uniform sampling with replacement strategy
         datasets_virtual_ids = np.random.randint(0, n_rows, (nb_datasets, dataset_size))
@@ -270,10 +301,10 @@ def fetch_columns(datasets, dataset_size, connection=None):
         virtual_unique_ids = list(set(datasets_virtual_ids.reshape(1, -1)[0].tolist()))
 
         # Map ids to real row indices of sampled_rows
-        virtual_sampled_mapping = {
-            v_id: s_id for s_id, v_id in enumerate(virtual_unique_ids)
-        }
-        mapper = lambda x: virtual_sampled_mapping[x]
+        virtual_sampled_mapping = {v_id: s_id for s_id, v_id in enumerate(virtual_unique_ids)}
+
+        def mapper(x):
+            return virtual_sampled_mapping[x]
 
         for i in range(nb_datasets):
             # Find the ids for the given dataset corresponding to the sampled_rows

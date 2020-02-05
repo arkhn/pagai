@@ -13,7 +13,7 @@ A staging version of Pagai is available through its web client here: [https://py
 ## Get started
 
 - Set up and start your virtualenv
-- Launch the server: `CONFIG_PATH=<env_path> python pagai/__init__.py`
+- Launch the server: `FLASK_RUN_PORT=4000 FLASK_APP=pagai/ flask run`
 - Visit `http://localhost:5000/init/<database_name>` to start database analysis
 
 ## The concept

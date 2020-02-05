@@ -1,6 +1,17 @@
-version: "3"
+version: "3.7"
 
 services:
+  reverse-proxy:
+    image: nginx:1.17.3-alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - 80:80
+    depends_on:
+      - pagai
+    networks:
+      - arkhn
+
   pagai:
     image: arkhn/pagai:latest
     build:
@@ -9,5 +20,10 @@ services:
     volumes:
       - ./models:/srv/pagai/models
     ports:
-      - 8081:8081
-      - 5000:5000
+      - 4000:4000
+    networks:
+      - arkhn
+
+networks:
+  arkhn:
+    name: arkhn_network

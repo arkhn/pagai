@@ -2,18 +2,19 @@ FROM python:3.7-slim
 
 RUN apt-get clean \
     && apt-get -y update
-    
+
 RUN apt-get -y install python3-dev \
     && apt-get -y install build-essential 
 
-WORKDIR /srv/pagai
+WORKDIR /app
 
-COPY requirements.txt  /srv/pagai/requirements.txt
+COPY requirements.txt  /app
 RUN pip install -r requirements.txt --src /usr/local/src
 
-COPY . /srv/pagai
+COPY pagai /app/pagai
+COPY start.sh /app
+COPY uwsgi.ini /app
 
 ENV JOBLIB_MULTIPROCESSING=0
 
-RUN chmod +x ./start.sh
 CMD ["./start.sh"] 

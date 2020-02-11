@@ -163,8 +163,8 @@ def get_table(table, connection=None, limit=1000, schema=None):
     """
     Return content of a table with a limit
     """
-    if schema:
-        table = f'"{schema}"."{table}"'
+    # Escape table with quotes
+    table = f'"{schema}"."{table}"' if schema else f'"{table}"'
 
     query = f"SELECT * FROM {table} ORDER BY RANDOM() LIMIT {limit};"
     results = run(query, connection)

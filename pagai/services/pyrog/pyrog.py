@@ -25,10 +25,7 @@ def get_headers():
         raise OperationOutcome(
             "PYROG_TOKEN is missing from environment: cannot get database credentials"
         )
-    return {
-        "content-type": "application/json",
-        "Authorization": f"Bearer {PYROG_TOKEN}",
-    }
+    return {"content-type": "application/json", "Authorization": f"Bearer {PYROG_TOKEN}"}
 
 
 def run_graphql_query(graphql_query, variables=None):
@@ -43,7 +40,7 @@ def run_graphql_query(graphql_query, variables=None):
 
     try:
         response = requests.post(
-            PYROG_URL, headers=get_headers(), json={"query": graphql_query, "variables": variables},
+            PYROG_URL, headers=get_headers(), json={"query": graphql_query, "variables": variables}
         )
     except requests.exceptions.ConnectionError:
         raise OperationOutcome("Could not connect to the Pyrog service")

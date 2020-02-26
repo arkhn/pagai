@@ -1,0 +1,11 @@
+FROM arkhn/python-base:latest
+
+WORKDIR /app
+
+COPY requirements.txt /app
+RUN pip install -r requirements.txt --src /usr/local/src
+
+COPY requirements-dev.txt /app
+RUN pip install -r requirements-dev.txt
+
+

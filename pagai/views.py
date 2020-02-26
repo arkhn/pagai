@@ -1,13 +1,14 @@
+from pathlib import Path
+
 from flask import Blueprint, jsonify, request
 from flask_cors import CORS
-from pathlib import Path
-import psycopg2
+from sqlalchemy.exc import OperationalError
 
-from pagai.errors import OperationOutcome
 from pagai.engine import Engine
 from pagai.engine.models import SAVE_PATH
-from pagai.services import postgres
+from pagai.errors import OperationOutcome
 from pagai.services import pyrog
+from pagai.services.database_explorer import POSTGRES, DatabaseExplorer
 
 api = Blueprint("api", __name__)
 # enable Cross-Origin Resource Sharing
@@ -107,23 +108,26 @@ def explore(credential_id, table):
     limit = request.args.get("first", 10, type=int)
     schema = request.args.get("schema")
 
-    def explore_postgres():
-        try:
-            with postgres.from_pyrog_credentials(credentials) as connection:
-                return postgres.explore(table, connection=connection, limit=limit, schema=schema)
-        except psycopg2.OperationalError as e:
-            raise OperationOutcome(f"Could not connect to the postgres database: {e}")
-
-    # switch on the possible db models and process the exploration query in a dedicated handler
+    # switch on the possible db models
     # if the db model is not supported, an error is raised.
-    db_handlers = {"POSTGRES": explore_postgres}
-    try:
-        handler = db_handlers[credentials.get("model")]
-        results = handler()
-    except KeyError:
+    db_drivers = {
+        "POSTGRES": POSTGRES,
+    }
+
+    db_model = credentials.get('model')
+    if db_model not in db_drivers:
         raise OperationOutcome(f"Database type {credentials.get('model')} is unknown")
 
-    return jsonify(results)
+    try:
+        explorer = DatabaseExplorer(db_drivers[db_model], credentials)
+        return jsonify(explorer.explore(table, limit=limit, schema=schema))
+    except OperationalError as e:
+        if 'could not connect to server' in str(e):
+            raise OperationOutcome(f"Could not connect to the database: {e}")
+        else:
+            raise OperationOutcome(e)
+    except Exception as e:
+        raise OperationOutcome(e)
 
 
 @api.errorhandler(OperationOutcome)

@@ -1,0 +1,15 @@
+FROM python:3.7-slim
+
+# Dependencies
+RUN apt-get update \
+    && apt-get -y  --no-install-recommends install build-essential python3-dev postgresql python-psycopg2 libpq-dev libaio1 wget unzip \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install the oracle client
+RUN wget https://download.oracle.com/otn_software/linux/instantclient/195000/instantclient-basic-linux.x64-19.5.0.0.0dbru.zip \
+    && unzip instantclient-basic-linux.x64-19.5.0.0.0dbru.zip -d /opt/oracle
+ENV LD_LIBRARY_PATH="/opt/oracle/instantclient_19_5:${LD_LIBRARY_PATH}"
+ENV PATH="/opt/oracle/instantclient_19_5:${PATH}"
+

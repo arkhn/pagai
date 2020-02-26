@@ -9,26 +9,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v1
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
-        with:
-          python-version: "3.7"
-      - name: Install dependencies
-        run: |
-          # postgres is required to build pagai
-          sudo apt update
-          sudo apt install postgresql libpq-dev
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+      - name: Setup docker for tests
+        run: make docker-setup-tests
+        env:
+          TEST_ORACLE_HOST: ${{ secrets.TEST_ORACLE_HOST }}
+          TEST_ORACLE_PORT: ${{ secrets.TEST_ORACLE_PORT }}
+          TEST_ORACLE_DB: ${{ secrets.TEST_ORACLE_DB }}
+          TEST_ORACLE_LOGIN: ${{ secrets.TEST_ORACLE_LOGIN }}
+          TEST_ORACLE_PASSWORD: ${{ secrets.TEST_ORACLE_PASSWORD }}
       - name: Lint with flake8
-        run: |
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 fhirpipe --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 fhirpipe --count --max-complexity=10 --max-line-length=100 --statistics
+        run: make lint
       - name: Test with pytest
-        run: |
-          python -m pytest -svv test/
+        run: make tests
 
   publish:
     name: Build and publish

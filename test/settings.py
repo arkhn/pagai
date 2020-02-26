@@ -1,0 +1,21 @@
+from os import getenv
+
+from pagai.services.database_explorer import POSTGRES, ORACLE
+
+
+DATABASES = {
+    POSTGRES: {
+        'host': getenv('TEST_POSTGRES_HOST', 'postgres'),
+        'port': int(getenv('TEST_POSTGRES_PORT', 5432)),
+        'database': getenv('TEST_POSTGRES_DB', 'test'),
+        'login': getenv('TEST_POSTGRES_LOGIN', 'test'),
+        'password': getenv('TEST_POSTGRES_PASSWORD', 'test'),
+    },
+    ORACLE: {
+        'host': getenv('TEST_ORACLE_HOST'),
+        'port': int(getenv('TEST_ORACLE_PORT', 1531)),
+        'database': getenv('TEST_ORACLE_DB'),
+        'login': getenv('TEST_ORACLE_LOGIN'),
+        'password': getenv('TEST_ORACLE_PASSWORD'),
+    }
+}

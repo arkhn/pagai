@@ -9,5 +9,5 @@ class TestExploration:
         exploration = explorer.explore(table='patients', limit=2)
 
         assert exploration['fields'] == ['index', 'patient_id', 'gender', 'date']
-        assert sorted(exploration['rows']) == [(0, 1, 'F', datetime.datetime(1974, 3, 5, 0, 0)),
-                                               (1, 2, 'M', datetime.datetime(1969, 12, 21, 0, 0))]
+        assert sorted(exploration['rows']) == [[0, 1, 'F', datetime.datetime(1974, 3, 5, 0, 0)],
+                                               [1, 2, 'M', datetime.datetime(1969, 12, 21, 0, 0)]]

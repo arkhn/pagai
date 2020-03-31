@@ -6,15 +6,32 @@ from pagai.errors import OperationOutcome
 PYROG_URL = os.getenv("PYROG_URL")
 PYROG_TOKEN = os.getenv("PYROG_TOKEN")
 
-credentialQuery = """
-query credential($credentialId: ID!) {
-    credential(credentialId: $credentialId) {
-        model
-        host
-        port
-        database
-        login
-        password
+resource_query = """
+query resource($resourceId: ID!) {
+    resource(resourceId: $resourceId) {
+        id
+        filters {
+            id
+            sqlColumn {
+                id
+                owner
+                table
+                column
+            }
+            relation
+            value
+        }
+        source {
+            id
+            credential {
+                model
+                host
+                port
+                database
+                login
+                password
+            }
+        }
     }
 }
 """
@@ -55,11 +72,9 @@ def run_graphql_query(graphql_query, variables=None):
 
     return body
 
-
-def get_credentials(credential_id):
-
-    resp = run_graphql_query(credentialQuery, variables={"credentialId": credential_id})
-    credentials = resp["data"]["credential"]
-    if not credentials:
-        raise OperationOutcome(f"Database using credentials ID '{credential_id}' does not exist")
-    return credentials
+def get_resource(resource_id):
+    resp = run_graphql_query(resource_query, variables={"resourceId": resource_id})
+    resource = resp["data"]["resource"]
+    if not resource:
+        raise OperationOutcome(f"Resource with id {resource_id} does not exist")
+    return resource

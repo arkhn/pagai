@@ -9,6 +9,19 @@ from pagai.errors import OperationOutcome
 POSTGRES = "postgresql"
 ORACLE = "oracle+cx_oracle"
 
+SQL_RELATIONS_TO_METHOD = {
+    "<": "__lt__",
+    "<=": "__le__",
+    "<>": "__ne__",
+    "=": "__eq__",
+    ">": "__gt__",
+    ">=": "__ge__",
+    # not handled yet
+    # "BETWEEN": "",
+    "IN": "in_",
+    "LIKE": "like",
+}
+
 
 def get_sql_url(db_handler: str, sql_config: Dict) -> str:
     return (
@@ -34,6 +47,9 @@ class DatabaseExplorer:
         self._metadata = MetaData(bind=self._sql_engine)
 
     def _get_sql_table(self, table: str, schema: str = None):
+        if not schema:
+            schema = None
+        table = table.strip()
         return Table(table, self._metadata, schema=schema, autoload=True)
 
     def get_column_names(self, table: str, schema: str = None):
@@ -43,24 +59,44 @@ class DatabaseExplorer:
         table = self._get_sql_table(table, schema)
         return [column.name for column in table.c]
 
-    def get_table(self, table: str, limit=1000, schema=None):
+    def get_column(self, column: str, table: str, schema: str = None):
+        """
+        Return column names of a table
+        """
+        table = self._get_sql_table(table, schema)
+        return table.c[column]
+
+    def get_table(self, table: str, schema=None, limit=1000, filters=[]):
         """
         Return content of a table with a limit
         """
         table = self._get_sql_table(table, schema)
-        return list(self._sql_engine.execute(table.select().limit(limit)))
+        select = table.select()
 
-    def explore(self, table: str, limit, schema=None):
+        # Add filtering if any
+        for filter_ in filters:
+            col = self.get_column(
+                filter_["sqlColumn"]["column"],
+                filter_["sqlColumn"]["table"],
+                filter_["sqlColumn"]["owner"],
+            )
+            rel_method = SQL_RELATIONS_TO_METHOD[filter_["relation"]]
+            select = select.where(getattr(col, rel_method)(filter_["value"]))
+
+        # Return as JSON serializable object
+        return [[col for col in row] for row in self._sql_engine.execute(select.limit(limit))]
+
+    def explore(self, table: str, limit, schema=None, filters=[]):
         """
         Returns the first rows of a table alongside the column names.
         """
         try:
             return {
                 "fields": self.get_column_names(table, schema=schema),
-                "rows": self.get_table(table, schema=schema, limit=limit),
+                "rows": self.get_table(table, schema=schema, limit=limit, filters=filters),
             }
         except InvalidRequestError as e:
-            if 'requested table(s) not available' in str(e):
+            if "requested table(s) not available" in str(e):
                 raise OperationOutcome(f"Table {table} does not exist in database")
             else:
                 raise OperationOutcome(e)

@@ -1,1 +1,1 @@
-from pagai.services.pyrog.pyrog import get_credentials
+from pagai.services.pyrog.pyrog import get_resource

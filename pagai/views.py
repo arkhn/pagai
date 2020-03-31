@@ -8,7 +8,7 @@ from pagai.engine import Engine
 from pagai.engine.models import SAVE_PATH
 from pagai.errors import OperationOutcome
 from pagai.services import pyrog
-from pagai.services.database_explorer import POSTGRES, DatabaseExplorer
+from pagai.services.database_explorer import POSTGRES, ORACLE, DatabaseExplorer
 
 api = Blueprint("api", __name__)
 # enable Cross-Origin Resource Sharing
@@ -96,15 +96,14 @@ def state(database_name):
         return jsonify({"status": "unknown or training"})
 
 
-@api.route("/explore/<credential_id>/<table>", methods=["GET"])
-def explore(credential_id, table):
+@api.route("/explore/<resource_id>/<table>", methods=["GET"])
+def explore(resource_id, table):
     """
     Database exploration: returns the first rows of
     a database table. The db credentials are retrieved from
     Pyrog. The number of returned rows may be specified using
-    query params (eg: /explore/<db>/<table>?first=10).
+    query params (eg: /explore/<resource_id>/<table>?first=10).
     """
-    credentials = pyrog.get_credentials(credential_id)
     limit = request.args.get("first", 10, type=int)
     schema = request.args.get("schema")
 
@@ -112,15 +111,27 @@ def explore(credential_id, table):
     # if the db model is not supported, an error is raised.
     db_drivers = {
         "POSTGRES": POSTGRES,
+        "ORACLE": ORACLE,
     }
+
+    resource = pyrog.get_resource(resource_id)
+
+    # Get credentials
+    if not resource["source"]["credential"]:
+        raise OperationOutcome("credentialId is required to explore the DB.")
+
+    credentials = resource["source"]["credential"]
 
     db_model = credentials.get('model')
     if db_model not in db_drivers:
         raise OperationOutcome(f"Database type {credentials.get('model')} is unknown")
 
+    # Get filters
+    filters = resource["filters"]
+
     try:
         explorer = DatabaseExplorer(db_drivers[db_model], credentials)
-        return jsonify(explorer.explore(table, limit=limit, schema=schema))
+        return jsonify(explorer.explore(table, limit=limit, schema=schema, filters=filters))
     except OperationalError as e:
         if 'could not connect to server' in str(e):
             raise OperationOutcome(f"Could not connect to the database: {e}")

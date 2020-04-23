@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from flask_cors import CORS
 from sqlalchemy.exc import OperationalError
 
@@ -16,6 +16,12 @@ api = Blueprint("api", __name__)
 CORS(api)
 
 engines = dict()
+
+
+def get_pyrog_client():
+    if "pyrog_client" not in g:
+        g.pyrog_client = pyrog.PyrogClient()
+    return g.pyrog_client
 
 
 @api.route("/init/<database_name>", methods=["GET"])
@@ -68,7 +74,7 @@ def search(database_name, resource_type):
 @api.route("/beta/search/<database_name>/<resource_type>", methods=["GET"])
 @api.route("/beta/search/<database_name>/<resource_type>/<head_table>", methods=["GET"])
 @api.route(
-    "/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>", methods=["GET"],
+    "/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>", methods=["GET"]
 )
 def betasearch(database_name, resource_type, head_table=None, column_name=None):
     """
@@ -109,12 +115,9 @@ def explore(resource_id, table):
 
     # switch on the possible db models
     # if the db model is not supported, an error is raised.
-    db_drivers = {
-        "POSTGRES": POSTGRES,
-        "ORACLE": ORACLE,
-    }
+    db_drivers = {"POSTGRES": POSTGRES, "ORACLE": ORACLE}
 
-    resource = pyrog.get_resource(resource_id)
+    resource = get_pyrog_client().get_resource(resource_id)
 
     # Get credentials
     if not resource["source"]["credential"]:
@@ -122,7 +125,7 @@ def explore(resource_id, table):
 
     credentials = resource["source"]["credential"]
 
-    db_model = credentials.get('model')
+    db_model = credentials.get("model")
     if db_model not in db_drivers:
         raise OperationOutcome(f"Database type {credentials.get('model')} is unknown")
 
@@ -133,7 +136,7 @@ def explore(resource_id, table):
         explorer = DatabaseExplorer(db_drivers[db_model], credentials)
         return jsonify(explorer.explore(table, limit=limit, schema=schema, filters=filters))
     except OperationalError as e:
-        if 'could not connect to server' in str(e):
+        if "could not connect to server" in str(e):
             raise OperationOutcome(f"Could not connect to the database: {e}")
         else:
             raise OperationOutcome(e)

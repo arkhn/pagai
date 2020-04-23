@@ -1,1 +1,1 @@
-from pagai.services.pyrog.pyrog import get_resource
+from pagai.services.pyrog.pyrog import PyrogClient

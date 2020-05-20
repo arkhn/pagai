@@ -74,7 +74,7 @@ def search(database_name, resource_type):
 @api.route("/beta/search/<database_name>/<resource_type>", methods=["GET"])
 @api.route("/beta/search/<database_name>/<resource_type>/<head_table>", methods=["GET"])
 @api.route(
-    "/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>", methods=["GET"]
+    "/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>", methods=["GET"],
 )
 def betasearch(database_name, resource_type, head_table=None, column_name=None):
     """
@@ -135,6 +135,54 @@ def explore(resource_id, table):
     try:
         explorer = DatabaseExplorer(db_drivers[db_model], credentials)
         return jsonify(explorer.explore(table, limit=limit, schema=schema, filters=filters))
+    except OperationalError as e:
+        if "could not connect to server" in str(e):
+            raise OperationOutcome(f"Could not connect to the database: {e}")
+        else:
+            raise OperationOutcome(e)
+    except Exception as e:
+        raise OperationOutcome(e)
+
+
+@api.route("/get_owners", methods=["POST"])
+def get_owners():
+    credentials = request.get_json()
+    db_drivers = {"POSTGRES": POSTGRES, "ORACLE": ORACLE}
+    db_model = credentials.get("model")
+
+    if db_model not in db_drivers:
+        raise OperationOutcome(f"Database type {credentials.get('model')} is unknown")
+
+    try:
+        explorer = DatabaseExplorer(db_drivers[db_model], credentials)
+        db_owners = explorer.get_owners()
+        return jsonify(db_owners)
+    except OperationalError as e:
+        if "could not connect to server" in str(e):
+            raise OperationOutcome(f"Could not connect to the database: {e}")
+        else:
+            raise OperationOutcome(e)
+    except Exception as e:
+        raise OperationOutcome(e)
+
+
+@api.route("/get_db_schema", methods=["POST"])
+def get_db_schema():
+
+    credentials = request.get_json()
+    db_drivers = {"POSTGRES": POSTGRES, "ORACLE": ORACLE}
+    db_model = credentials.get("model")
+    owner = credentials.get("owner")
+    if not owner:
+        raise OperationOutcome(f"Database owner is required")
+
+    if db_model not in db_drivers:
+        raise OperationOutcome(f"Database type {credentials.get('model')} is unknown")
+
+    try:
+        explorer = DatabaseExplorer(db_drivers[db_model], credentials)
+        db_schema = explorer.get_db_schema(owner)
+        return jsonify(db_schema)
     except OperationalError as e:
         if "could not connect to server" in str(e):
             raise OperationOutcome(f"Could not connect to the database: {e}")

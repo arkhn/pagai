@@ -13,7 +13,7 @@ requirements = read("requirements.txt").split()
 
 setuptools.setup(
     name="pagai",
-    version="0.1.0",
+    version="0.1.1",
     author="Arkhn",
     author_email="contact@arkhn.org",
     description="Pagai is a SQL database inspection tool implemented in Python.",

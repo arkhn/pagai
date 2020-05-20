@@ -1,8 +1,9 @@
 from typing import Dict
-
-from sqlalchemy import create_engine, MetaData, Table
+import time
+from sqlalchemy import create_engine, MetaData, Table, text
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.exc import InvalidRequestError, NoSuchTableError
+from collections import defaultdict
 
 from pagai.errors import OperationOutcome
 
@@ -102,3 +103,37 @@ class DatabaseExplorer:
                 raise OperationOutcome(e)
         except Exception as e:
             raise OperationOutcome(e)
+
+    def get_owners(self):
+        """
+        Returns all owners of a database.
+        """
+        if self._db_config["handler"] == "postgresql":
+            sql_query = text(f"select schema_name as owners from information_schema.schemata;")
+        else:
+            sql_query = text(f"select username as owners from all_users")
+
+        with self._sql_engine.connect() as connection:
+            result = connection.execute(sql_query).fetchall()
+        return [r["owners"] for r in result]
+
+    def get_db_schema(self, owner: str):
+        """
+        Returns the database schema for one owner of a database, as required by Pyrog
+        """
+        db_schema = defaultdict(lambda: [])
+
+        if self._db_config["handler"] == "postgresql":
+            sql_query = text(
+                f"select table_name, column_name from information_schema.columns where table_schema='{owner}';"
+            )
+        else:
+            sql_query = text(
+                f"select table_name, column_name from all_tab_columns where owner='{owner}'"
+            )
+
+        with self._sql_engine.connect() as connection:
+            result = connection.execute(sql_query).fetchall()
+            for row in result:
+                db_schema[row["table_name"]].append(row["column_name"])
+        return db_schema

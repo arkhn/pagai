@@ -14,7 +14,7 @@ A staging version of Pagai is available through its web client here: [https://py
 
 - Set up and start your virtualenv
 - Edit your .env file with PYROG_LOGIN and PYROG_PASSWORD env variables.
-- Launch the server: `FLASK_RUN_PORT=4000 FLASK_APP=pagai/ flask run`
+- Launch the server: `FLASK_RUN_PORT=4000 FLASK_APP=pagai/app flask run`
 - Visit `http://localhost:4000/init/<database_name>` to start database analysis
 
 ## The concept

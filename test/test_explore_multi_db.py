@@ -5,7 +5,7 @@ from pagai.services.database_explorer import DatabaseExplorer, POSTGRES
 
 class TestExploration:
     def test_explore(self, db_config):
-        explorer = DatabaseExplorer(db_config["handler"], db_config)
+        explorer = DatabaseExplorer(db_config["model"], db_config)
         exploration = explorer.explore(table="patients", limit=2)
 
         assert exploration["fields"] == ["index", "patient_id", "gender", "date"]
@@ -15,9 +15,9 @@ class TestExploration:
         ]
 
     def test_owners(self, db_config):
-        explorer = DatabaseExplorer(db_config["handler"], db_config)
-        owners = explorer.get_owners()
-        if db_config["handler"] == "postgresql":
+        explorer = DatabaseExplorer(db_config["model"], db_config)
+        owners = explorer.get_owners(driver=db_config["model"])
+        if db_config["model"] == POSTGRES:
             assert owners == [
                 "pg_toast",
                 "pg_temp_1",
@@ -67,10 +67,10 @@ class TestExploration:
             ]
 
     def test_get_db_schema_(self, db_config):
-        explorer = DatabaseExplorer(db_config["handler"], db_config)
-        if db_config["handler"] == "postgresql":
-            db_schema = explorer.get_db_schema(owner="public")
+        explorer = DatabaseExplorer(db_config["model"], db_config)
+        if db_config["model"] == POSTGRES:
+            db_schema = explorer.get_db_schema(owner="public", driver=db_config["model"])
             assert isinstance(db_schema, dict)
         else:
-            db_schema = explorer.get_db_schema(owner="SYSTEM")
+            db_schema = explorer.get_db_schema(owner="SYSTEM", driver=db_config["model"])
             assert isinstance(db_schema, dict)

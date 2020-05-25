@@ -74,7 +74,7 @@ def search(database_name, resource_type):
 @api.route("/beta/search/<database_name>/<resource_type>", methods=["GET"])
 @api.route("/beta/search/<database_name>/<resource_type>/<head_table>", methods=["GET"])
 @api.route(
-    "/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>", methods=["GET"],
+    "/beta/search/<database_name>/<resource_type>/<head_table>/<column_name>", methods=["GET"]
 )
 def betasearch(database_name, resource_type, head_table=None, column_name=None):
     """
@@ -155,7 +155,7 @@ def get_owners():
 
     try:
         explorer = DatabaseExplorer(db_drivers[db_model], credentials)
-        db_owners = explorer.get_owners()
+        db_owners = explorer.get_owners(driver=db_drivers[db_model])
         return jsonify(db_owners)
     except OperationalError as e:
         if "could not connect to server" in str(e):
@@ -181,7 +181,7 @@ def get_db_schema():
 
     try:
         explorer = DatabaseExplorer(db_drivers[db_model], credentials)
-        db_schema = explorer.get_db_schema(owner)
+        db_schema = explorer.get_db_schema(owner, driver=db_drivers[db_model])
         return jsonify(db_schema)
     except OperationalError as e:
         if "could not connect to server" in str(e):

@@ -104,11 +104,11 @@ class DatabaseExplorer:
         except Exception as e:
             raise OperationOutcome(e)
 
-    def get_owners(self):
+    def get_owners(self, driver=POSTGRES):
         """
         Returns all owners of a database.
         """
-        if self._db_config["handler"] == "postgresql":
+        if driver == POSTGRES:
             sql_query = text(f"select schema_name as owners from information_schema.schemata;")
         else:
             sql_query = text(f"select username as owners from all_users")
@@ -117,13 +117,13 @@ class DatabaseExplorer:
             result = connection.execute(sql_query).fetchall()
         return [r["owners"] for r in result]
 
-    def get_db_schema(self, owner: str):
+    def get_db_schema(self, owner: str, driver=POSTGRES):
         """
         Returns the database schema for one owner of a database, as required by Pyrog
         """
         db_schema = defaultdict(lambda: [])
 
-        if self._db_config["handler"] == "postgresql":
+        if driver == POSTGRES:
             sql_query = text(
                 f"select table_name, column_name from information_schema.columns where table_schema='{owner}';"
             )

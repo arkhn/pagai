@@ -111,7 +111,6 @@ def explore(resource_id, table):
     query params (eg: /explore/<resource_id>/<table>?first=10).
     """
     limit = request.args.get("first", 10, type=int)
-    schema = request.args.get("schema")
 
     # switch on the possible db models
     # if the db model is not supported, an error is raised.
@@ -134,7 +133,9 @@ def explore(resource_id, table):
 
     try:
         explorer = DatabaseExplorer(db_drivers[db_model], credentials)
-        return jsonify(explorer.explore(table, limit=limit, schema=schema, filters=filters))
+        return jsonify(
+            explorer.explore(table, limit=limit, schema=credentials.get("owner"), filters=filters)
+        )
     except OperationalError as e:
         if "could not connect to server" in str(e):
             raise OperationOutcome(f"Could not connect to the database: {e}")

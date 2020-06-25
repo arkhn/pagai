@@ -26,7 +26,8 @@ SQL_RELATIONS_TO_METHOD = {
 
 def get_sql_url(db_handler: str, sql_config: Dict) -> str:
     return (
-        f'{db_handler}://{sql_config["login"]}:{sql_config["password"]}@{sql_config["host"]}:{sql_config["port"]}'
+        f'{db_handler}://{sql_config["login"]}:{sql_config["password"]}'
+        f'@{sql_config["host"]}:{sql_config["port"]}'
         f'/{sql_config["database"]}'
     )
 
@@ -77,9 +78,7 @@ class DatabaseExplorer:
         # Add filtering if any
         for filter_ in filters:
             col = self.get_column(
-                filter_["sqlColumn"]["column"],
-                filter_["sqlColumn"]["table"],
-                filter_["sqlColumn"]["owner"],
+                filter_["sqlColumn"]["column"], filter_["sqlColumn"]["table"], schema
             )
             rel_method = SQL_RELATIONS_TO_METHOD[filter_["relation"]]
             select = select.where(getattr(col, rel_method)(filter_["value"]))

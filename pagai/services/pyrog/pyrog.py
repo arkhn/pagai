@@ -23,7 +23,6 @@ query resource($resourceId: ID!) {
             id
             sqlColumn {
                 id
-                owner
                 table
                 column
             }
@@ -37,8 +36,9 @@ query resource($resourceId: ID!) {
                 host
                 port
                 database
+                owner
                 login
-                password
+                password: decryptedPassword
             }
         }
     }

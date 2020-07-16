@@ -136,3 +136,15 @@ class DatabaseExplorer:
             for row in result:
                 db_schema[row["table_name"]].append(row["column_name"])
         return db_schema
+    
+    # TODO: write a function which takes a list of table names and a database schema as an argument, and returns a 
+    # percentage of completion for all the columns in the given tables
+    # in the format {"table_A": {"col1": 0.9, "col2": 0.6}, "table_B": {"col3":0, "col4": 1}}
+    def get_column_completion(self, db_schema: defaultdict(list), tables: []):
+        
+        targeted_tables= dict((table_name, db_schema[table_name]) for table_name in tables)
+        for table_name,column_name in targeted_tables.items():
+            # TODO: write sql query to compute completion percentage for each column
+            # TODO: connect and execute the query
+            # TODO: format and return result 
+            return ""

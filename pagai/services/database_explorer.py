@@ -137,24 +137,11 @@ class DatabaseExplorer:
                 db_schema[row["table_name"]].append(row["column_name"])
         return db_schema
     
-    # TODO: write a function which takes a list of table names and a database schema as an argument, and returns a 
-    # percentage of completion for all the columns in the given tables
-    # in the format {"table_A": {"col1": 0.9, "col2": 0.6}, "table_B": {"col3":0, "col4": 1}}
 
     def get_column_completion(self, db_schema: defaultdict(list), table: str, sort: bool):
         """
-        Returns the percentage of completion for all columns in the given table
+        Returns a list of (column_name, percentage of completion) for all columns in a given table
         """
-        # result_display = {}
-
-        # for column in db_schema[table] :
-        #     sql_query = text(f"select round(count({column}) / count(*) * 100, 0) from {table}")
-        
-        #     with self._sql_engine.connect() as connection:
-        #         result = connection.execute(sql_query).fetchall()
-        #         result_display[column] = result[0][0]
-        # return result_display
-        #         result_display = ''
         query_tmp = ""
         column_list = sorted(db_schema[table]) if sort else db_schema[table]
         for column in column_list[:-1] :

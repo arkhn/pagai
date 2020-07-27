@@ -140,11 +140,29 @@ class DatabaseExplorer:
     # TODO: write a function which takes a list of table names and a database schema as an argument, and returns a 
     # percentage of completion for all the columns in the given tables
     # in the format {"table_A": {"col1": 0.9, "col2": 0.6}, "table_B": {"col3":0, "col4": 1}}
-    def get_column_completion(self, db_schema: defaultdict(list), tables: []):
+
+    def get_column_completion(self, db_schema: defaultdict(list), table: str, sort: bool):
+        """
+        Returns the percentage of completion for all columns in the given table
+        """
+        # result_display = {}
+
+        # for column in db_schema[table] :
+        #     sql_query = text(f"select round(count({column}) / count(*) * 100, 0) from {table}")
         
-        targeted_tables= dict((table_name, db_schema[table_name]) for table_name in tables)
-        for table_name,column_name in targeted_tables.items():
-            # TODO: write sql query to compute completion percentage for each column
-            # TODO: connect and execute the query
-            # TODO: format and return result 
-            return ""
+        #     with self._sql_engine.connect() as connection:
+        #         result = connection.execute(sql_query).fetchall()
+        #         result_display[column] = result[0][0]
+        # return result_display
+        #         result_display = ''
+        query_tmp = ""
+        column_list = sorted(db_schema[table]) if sort else db_schema[table]
+        for column in column_list[:-1] :
+            query_tmp += f"round(count({column}) / count(*) * 100, 0), "
+        query_tmp += f"round(count({column_list[-1]}) / count(*) * 100, 0) "
+        sql_query = f"select {query_tmp} from {table}"
+
+        with self._sql_engine.connect() as connection:
+            query_result = connection.execute(sql_query).fetchall()
+        result = list(zip(db_schema[table], query_result[0]))
+        return result

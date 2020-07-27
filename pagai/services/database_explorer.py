@@ -1,7 +1,5 @@
 from typing import Dict
-import time
 from sqlalchemy import create_engine, MetaData, Table, text
-from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.exc import InvalidRequestError, NoSuchTableError
 from collections import defaultdict
 
@@ -120,7 +118,7 @@ class DatabaseExplorer:
         """
         Returns the database schema for one owner of a database, as required by Pyrog
         """
-        db_schema = defaultdict(lambda: [])
+        db_schema = defaultdict(list)
 
         if driver == POSTGRES:
             sql_query = text(
@@ -134,7 +132,7 @@ class DatabaseExplorer:
         with self._sql_engine.connect() as connection:
             result = connection.execute(sql_query).fetchall()
             for row in result:
-                db_schema[row["table_name"]].append(row["column_name"])
+                db_schema[row["table_name"].lower()].append(row["column_name"].lower()) 
         return db_schema
     
 

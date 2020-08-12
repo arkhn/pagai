@@ -71,6 +71,17 @@ If you're enthusiastic about our project, :star: it to show your support! :heart
 
 ---
 
+## Dev
+
+### Docker build
+
+```shell
+docker build -t arkhn/pagai:latest . # build the regular pagai image
+docker build -t mammouth.arkhn.com/arkhn/pagai:oracle11 -f Dockerfile.oracle11 . # build the oracle-enabled version of pagai
+```
+
+---
+
 ## License
 
 [Apache License 2.0](https://github.com/OpenMined/PySyft/blob/master/LICENSE)

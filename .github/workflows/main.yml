@@ -30,7 +30,7 @@ jobs:
     if: github.ref == 'refs/heads/master'
 
     env:
-      GITHUB_REGISTRY: docker.pkg.github.com
+      ARKHN_REGISTRY: mammouth.arkhn.com
       IMAGE: arkhn/pagai
     steps:
       - uses: actions/checkout@v1
@@ -41,14 +41,14 @@ jobs:
           python-version: "3.7"
 
       - name: Build images
-        run: docker build -t $IMAGE .
+        run: |
+          docker build -t $IMAGE .
+          docker build -f Dockerfile.oracle11 -t $ARKHN_REGISTRY/$IMAGE:oracle11 .
 
       - name: Tag images
         run: |
           docker tag $IMAGE $IMAGE:latest
           docker tag $IMAGE $IMAGE:$GITHUB_SHA
-          docker tag $IMAGE $GITHUB_REGISTRY/${{ github.repository }}/pagai:latest
-          docker tag $IMAGE $GITHUB_REGISTRY/${{ github.repository }}/pagai:$GITHUB_SHA
 
       - name: Publish to the docker hub
         run: |
@@ -56,8 +56,7 @@ jobs:
           docker push $IMAGE:latest
           docker push $IMAGE:$GITHUB_SHA
 
-      - name: Publish to Github Packages
+      - name: Publish to arkhn regitry (mammouth)
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login $GITHUB_REGISTRY -u ${{ github.actor }} --password-stdin
-          docker push $GITHUB_REGISTRY/${{ github.repository }}/pagai:latest
-          docker push $GITHUB_REGISTRY/${{ github.repository }}/pagai:$GITHUB_SHA
+          echo "${{ secrets.ARKHN_DOCKER_PASSWORD }}" | docker login $ARKHN_REGISTRY -u ${{ secrets.ARKHN_DOCKER_LOGIN }} --password-stdin
+          docker push $ARKHN_REGISTRY/$IMAGE:oracle11

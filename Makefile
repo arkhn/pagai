@@ -7,9 +7,6 @@ lint:
 tests:
 	docker-compose -f docker-compose.test.yml exec -T pagai python -m pytest -svv test/
 
-docker-base:
-	docker build -t arkhn/python-base:latest -f Dockerfile.base .
-
-docker-setup-tests: docker-base
+docker-setup-tests:
 	docker-compose -f docker-compose.test.yml build
 	docker-compose -f docker-compose.test.yml up -d

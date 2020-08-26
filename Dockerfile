@@ -1,4 +1,4 @@
-FROM arkhn/python-base:latest
+FROM arkhn/python-base:all
 
 WORKDIR /app
 

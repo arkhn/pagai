@@ -1,11 +1,11 @@
 import datetime
 
-from pagai.services.database_explorer import DatabaseExplorer, POSTGRES
+from pagai.services.database_explorer import DatabaseExplorer, POSTGRES, MSSQL
 
 
 class TestExploration:
     def test_explore(self, db_config):
-        explorer = DatabaseExplorer(db_config["model"], db_config)
+        explorer = DatabaseExplorer(db_config)
         exploration = explorer.explore(table="patients", limit=2)
 
         assert exploration["fields"] == ["index", "patient_id", "gender", "date"]
@@ -15,8 +15,8 @@ class TestExploration:
         ]
 
     def test_owners(self, db_config):
-        explorer = DatabaseExplorer(db_config["model"], db_config)
-        owners = explorer.get_owners(driver=db_config["model"])
+        explorer = DatabaseExplorer(db_config)
+        owners = explorer.get_owners()
         if db_config["model"] == POSTGRES:
             assert owners == [
                 "pg_toast",
@@ -25,6 +25,22 @@ class TestExploration:
                 "pg_catalog",
                 "public",
                 "information_schema",
+            ]
+        elif db_config["model"] == MSSQL:
+            assert owners == [
+                "dbo",
+                "guest",
+                "INFORMATION_SCHEMA",
+                "sys",
+                "db_owner",
+                "db_accessadmin",
+                "db_securityadmin",
+                "db_ddladmin",
+                "db_backupoperator",
+                "db_datareader",
+                "db_datawriter",
+                "db_denydatareader",
+                "db_denydatawriter",
             ]
         else:
             assert owners == [
@@ -67,10 +83,13 @@ class TestExploration:
             ]
 
     def test_get_db_schema_(self, db_config):
-        explorer = DatabaseExplorer(db_config["model"], db_config)
+        explorer = DatabaseExplorer(db_config)
         if db_config["model"] == POSTGRES:
-            db_schema = explorer.get_db_schema(owner="public", driver=db_config["model"])
+            db_schema = explorer.get_db_schema(owner="public")
+            assert isinstance(db_schema, dict)
+        if db_config["model"] == MSSQL:
+            db_schema = explorer.get_db_schema(owner="dbo")
             assert isinstance(db_schema, dict)
         else:
-            db_schema = explorer.get_db_schema(owner="SYSTEM", driver=db_config["model"])
+            db_schema = explorer.get_db_schema(owner="SYSTEM")
             assert isinstance(db_schema, dict)

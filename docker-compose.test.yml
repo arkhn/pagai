@@ -26,6 +26,11 @@ services:
       - TEST_ORACLE_DB
       - TEST_ORACLE_LOGIN
       - TEST_ORACLE_PASSWORD
+      - TEST_MSSQL_HOST
+      - TEST_MSSQL_PORT
+      - TEST_MSSQL_DB
+      - TEST_MSSQL_LOGIN
+      - TEST_MSSQL_PASSWORD
     volumes:
       - .:/app
       - ./models:/srv/pagai/models

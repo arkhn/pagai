@@ -26,8 +26,8 @@ def db_config(request):
 
     table_name = "patients"
 
-    # Use custom check if table exists instead of pandas feature df.to_sql(if_exists='replace') because it uses
-    # reflection on Oracle and it's very slow.
+    # Use custom check if table exists instead of pandas feature df.to_sql(if_exists='replace')
+    # because it uses reflection on Oracle and it's very slow.
     if table_exists(sql_engine, table_name):
         sql_engine.execute("drop table %s" % table_name)
         print("dropped existing test table:", table_name)

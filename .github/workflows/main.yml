@@ -17,6 +17,11 @@ jobs:
           TEST_ORACLE_DB: ${{ secrets.TEST_ORACLE_DB }}
           TEST_ORACLE_LOGIN: ${{ secrets.TEST_ORACLE_LOGIN }}
           TEST_ORACLE_PASSWORD: ${{ secrets.TEST_ORACLE_PASSWORD }}
+          TEST_MSSQL_HOST: ${{ secrets.TEST_MSSQL_HOST }}
+          TEST_MSSQL_PORT: ${{ secrets.TEST_MSSQL_PORT }}
+          TEST_MSSQL_DB: ${{ secrets.TEST_MSSQL_DB }}
+          TEST_MSSQL_LOGIN: ${{ secrets.TEST_MSSQL_LOGIN }}
+          TEST_MSSQL_PASSWORD: ${{ secrets.TEST_MSSQL_PASSWORD }}
       - name: Lint with flake8
         run: make lint
       - name: Test with pytest
@@ -43,7 +48,6 @@ jobs:
       - name: Build images
         run: |
           docker build -t $IMAGE .
-          echo "${{ secrets.ARKHN_DOCKER_PASSWORD }}" | docker login $ARKHN_REGISTRY -u ${{ secrets.ARKHN_DOCKER_LOGIN }} --password-stdin
           docker build -f Dockerfile.oracle11 -t $ARKHN_REGISTRY/$IMAGE:oracle11 .
 
       - name: Tag images
@@ -54,8 +58,7 @@ jobs:
       - name: Publish to the docker hub
         run: |
           echo "${{ secrets.DOCKER_PASSWORD }}" |  docker login -u ${{ secrets.DOCKER_LOGIN }} --password-stdin
-          docker push $IMAGE:latest
-          docker push $IMAGE:$GITHUB_SHA
+          docker push $IMAGE
 
       - name: Publish to arkhn regitry (mammouth)
         run: |

@@ -4,7 +4,7 @@ from sqlalchemy.exc import OperationalError
 
 from pagai.errors import OperationOutcome
 from pagai.services import pyrog
-from pagai.services.database_explorer import POSTGRES, ORACLE, DatabaseExplorer
+from pagai.services.database_explorer import DatabaseExplorer
 
 api = Blueprint("api", __name__)
 # enable Cross-Origin Resource Sharing
@@ -30,10 +30,6 @@ def explore(resource_id, table):
     """
     limit = request.args.get("first", 10, type=int)
 
-    # switch on the possible db models
-    # if the db model is not supported, an error is raised.
-    db_drivers = {"POSTGRES": POSTGRES, "ORACLE": ORACLE}
-
     resource = get_pyrog_client().get_resource(resource_id)
 
     # Get credentials
@@ -42,15 +38,11 @@ def explore(resource_id, table):
 
     credentials = resource["source"]["credential"]
 
-    db_model = credentials.get("model")
-    if db_model not in db_drivers:
-        raise OperationOutcome(f"Database type {credentials.get('model')} is unknown")
-
     # Get filters
     filters = resource["filters"]
 
     try:
-        explorer = DatabaseExplorer(db_drivers[db_model], credentials)
+        explorer = DatabaseExplorer(credentials)
         return jsonify(
             explorer.explore(table, limit=limit, schema=credentials.get("owner"), filters=filters)
         )
@@ -66,15 +58,10 @@ def explore(resource_id, table):
 @api.route("/get_owners", methods=["POST"])
 def get_owners():
     credentials = request.get_json()
-    db_drivers = {"POSTGRES": POSTGRES, "ORACLE": ORACLE}
-    db_model = credentials.get("model")
-
-    if db_model not in db_drivers:
-        raise OperationOutcome(f"Database type {credentials.get('model')} is unknown")
 
     try:
-        explorer = DatabaseExplorer(db_drivers[db_model], credentials)
-        db_owners = explorer.get_owners(driver=db_drivers[db_model])
+        explorer = DatabaseExplorer(credentials)
+        db_owners = explorer.get_owners()
         return jsonify(db_owners)
     except OperationalError as e:
         if "could not connect to server" in str(e):
@@ -89,18 +76,13 @@ def get_owners():
 def get_db_schema():
 
     credentials = request.get_json()
-    db_drivers = {"POSTGRES": POSTGRES, "ORACLE": ORACLE}
-    db_model = credentials.get("model")
     owner = credentials.get("owner")
     if not owner:
-        raise OperationOutcome(f"Database owner is required")
-
-    if db_model not in db_drivers:
-        raise OperationOutcome(f"Database type {credentials.get('model')} is unknown")
+        raise OperationOutcome("Database owner is required")
 
     try:
-        explorer = DatabaseExplorer(db_drivers[db_model], credentials)
-        db_schema = explorer.get_db_schema(owner, driver=db_drivers[db_model])
+        explorer = DatabaseExplorer(credentials)
+        db_schema = explorer.get_db_schema(owner)
         return jsonify(db_schema)
     except OperationalError as e:
         if "could not connect to server" in str(e):

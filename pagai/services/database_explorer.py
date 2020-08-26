@@ -5,8 +5,11 @@ from collections import defaultdict
 
 from pagai.errors import OperationOutcome
 
-POSTGRES = "postgresql"
-ORACLE = "oracle+cx_oracle"
+MSSQL = "MSSQL"
+ORACLE = "ORACLE"
+POSTGRES = "POSTGRES"
+DB_DRIVERS = {POSTGRES: "postgresql", ORACLE: "oracle+cx_oracle", MSSQL: "mssql+pyodbc"}
+URL_SUFFIXES = {POSTGRES: "", ORACLE: "", MSSQL: "?driver=ODBC+Driver+17+for+SQL+Server"}
 
 SQL_RELATIONS_TO_METHOD = {
     "<": "__lt__",
@@ -22,17 +25,18 @@ SQL_RELATIONS_TO_METHOD = {
 }
 
 
-def get_sql_url(db_handler: str, sql_config: Dict) -> str:
+def get_sql_url(db_model: str, sql_config: Dict) -> str:
     return (
-        f'{db_handler}://{sql_config["login"]}:{sql_config["password"]}'
-        f'@{sql_config["host"]}:{sql_config["port"]}'
-        f'/{sql_config["database"]}'
+        f"{DB_DRIVERS[db_model]}://{sql_config['login']}:{sql_config['password']}"
+        f"@{sql_config['host']}:{sql_config['port']}"
+        f"/{sql_config['database']}{URL_SUFFIXES[db_model]}"
     )
 
 
 def table_exists(sql_engine, table_name):
     try:
-        # Don't use Sqlalchemy Inspector as it uses reflection and it takes a very long time on Oracle.
+        # Don't use Sqlalchemy Inspector as it uses reflection and
+        # it takes a very long time on Oracle.
         metadata = MetaData(bind=sql_engine)
         _ = Table(table_name, metadata, autoload=True)
         return True
@@ -41,9 +45,13 @@ def table_exists(sql_engine, table_name):
 
 
 class DatabaseExplorer:
-    def __init__(self, driver_name: str, db_config: Dict):
+    def __init__(self, db_config: Dict):
+        self._db_model = db_config.get("model")
+        if self._db_model not in DB_DRIVERS:
+            raise OperationOutcome(f"Database type {self._db_model} is unknown")
+
         self._db_config = db_config
-        self._sql_engine = create_engine(get_sql_url(driver_name, db_config))
+        self._sql_engine = create_engine(get_sql_url(self._db_model, db_config))
         self._metadata = MetaData(bind=self._sql_engine)
 
     def _get_sql_table(self, table: str, schema: str = None):
@@ -101,36 +109,37 @@ class DatabaseExplorer:
         except Exception as e:
             raise OperationOutcome(e)
 
-    def get_owners(self, driver=POSTGRES):
+    def get_owners(self):
         """
         Returns all owners of a database.
         """
-        if driver == POSTGRES:
-            sql_query = text(f"select schema_name as owners from information_schema.schemata;")
-        else:
-            sql_query = text(f"select username as owners from all_users")
+        if self._db_model == ORACLE:
+            sql_query = text("select username as owners from all_users")
+        else:  # POSTGRES AND MSSQL
+            sql_query = text("select schema_name as owners from information_schema.schemata;")
 
         with self._sql_engine.connect() as connection:
             result = connection.execute(sql_query).fetchall()
         return [r["owners"] for r in result]
 
-    def get_db_schema(self, owner: str, driver=POSTGRES):
+    def get_db_schema(self, owner: str):
         """
         Returns the database schema for one owner of a database, as required by Pyrog
         """
         db_schema = defaultdict(list)
 
-        if driver == POSTGRES:
-            sql_query = text(
-                f"select table_name, column_name from information_schema.columns where table_schema='{owner}';"
-            )
-        else:
+        if self._db_model == ORACLE:
             sql_query = text(
                 f"select table_name, column_name from all_tab_columns where owner='{owner}'"
+            )
+        else:  # POSTGRES AND MSSQL
+            sql_query = text(
+                f"select table_name, column_name from information_schema.columns "
+                f"where table_schema='{owner}';"
             )
 
         with self._sql_engine.connect() as connection:
             result = connection.execute(sql_query).fetchall()
             for row in result:
-                db_schema[row["table_name"].lower()].append(row["column_name"].lower()) 
+                db_schema[row["table_name"].lower()].append(row["column_name"].lower())
         return db_schema

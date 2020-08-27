@@ -48,6 +48,7 @@ jobs:
       - name: Build images
         run: |
           docker build -t $IMAGE .
+          echo "${{ secrets.ARKHN_DOCKER_PASSWORD }}" | docker login $ARKHN_REGISTRY -u ${{ secrets.ARKHN_DOCKER_LOGIN }} --password-stdin
           docker build -f Dockerfile.oracle11 -t $ARKHN_REGISTRY/$IMAGE:oracle11 .
 
       - name: Tag images

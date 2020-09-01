@@ -141,5 +141,5 @@ class DatabaseExplorer:
         with self._sql_engine.connect() as connection:
             result = connection.execute(sql_query).fetchall()
             for row in result:
-                db_schema[row["table_name"].lower()].append(row["column_name"].lower())
+                db_schema[row["table_name"]].append(row["column_name"])
         return db_schema

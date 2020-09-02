@@ -2,7 +2,8 @@ FROM arkhn/python-base:all
 
 WORKDIR /app
 
-COPY requirements.txt  /app
+COPY requirements/requirements-base.txt  /app/requirements-base.txt
+COPY requirements/requirements-all.txt  /app/requirements.txt
 RUN pip install -r requirements.txt --src /usr/local/src
 
 COPY pagai /app/pagai

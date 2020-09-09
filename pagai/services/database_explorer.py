@@ -72,7 +72,14 @@ class DatabaseExplorer:
         Return column names of a table
         """
         table = self._get_sql_table(table, schema)
-        return table.c[column]
+        try:
+            return table.c[column]
+        except KeyError:
+            # If column is not in table.c it may be because the column names are case insensitive.
+            # If so, the schema can be in upper case (what oracle considers as case insensitive)
+            # but the keys in table.c are in lower case (what sqlalchemy considers
+            # as case insensitive).
+            return table.c[column.lower()]
 
     def get_table(self, table: str, schema=None, limit=1000, filters=[]):
         """

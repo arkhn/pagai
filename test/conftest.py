@@ -18,21 +18,26 @@ def db_config(request):
     db_driver = request.param
     db_config = DATABASES[db_driver]
 
-    # Load (or reload) test data into db.
-    data = pd.read_csv(
-        get_test_data_path("patients.csv"), sep=",", encoding="utf-8", parse_dates=["date"]
-    )
     sql_engine = create_engine(get_sql_url(db_driver, db_config))
 
-    table_name = "patients"
-
-    # Use custom check if table exists instead of pandas feature df.to_sql(if_exists='replace')
-    # because it uses reflection on Oracle and it's very slow.
-    if table_exists(sql_engine, table_name):
-        sql_engine.execute("drop table %s" % table_name)
-        print("dropped existing test table:", table_name)
-
-    data.to_sql(name=table_name, con=sql_engine)
+    # Load (or reload) test data into db.
+    load_table(sql_engine, "patients", "patients.csv")
+    load_table(sql_engine, "UPPERCASE", "patients-uppercase.csv")
+    load_table(sql_engine, "CaseSensitive", "patients-case-sensitive.csv")
 
     db_config["model"] = db_driver
     return db_config
+
+
+def load_table(sql_engine, table_name, data_file):
+    data = pd.read_csv(
+        get_test_data_path(data_file), sep=",", encoding="utf-8", parse_dates=["date"]
+    )
+    # Use custom check if table exists instead of pandas feature df.to_sql(if_exists='replace')
+    # because it uses reflection on Oracle and it's very slow.
+    exists, table = table_exists(sql_engine, table_name)
+    if exists:
+        table.drop(sql_engine)
+        print("dropped existing test table:", table_name)
+
+    data.to_sql(name=table_name, con=sql_engine)

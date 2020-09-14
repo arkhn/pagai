@@ -1,6 +1,7 @@
-from typing import Dict
+from typing import List, Optional
+
 from sqlalchemy import create_engine, MetaData, Table, text
-from sqlalchemy.exc import InvalidRequestError, NoSuchTableError
+from sqlalchemy.exc import InvalidRequestError, NoSuchColumnError, NoSuchTableError
 from collections import defaultdict
 
 from pagai.errors import OperationOutcome
@@ -25,7 +26,7 @@ SQL_RELATIONS_TO_METHOD = {
 }
 
 
-def get_sql_url(db_model: str, sql_config: Dict) -> str:
+def get_sql_url(db_model: str, sql_config: dict) -> str:
     return (
         f"{DB_DRIVERS[db_model]}://{sql_config['login']}:{sql_config['password']}"
         f"@{sql_config['host']}:{sql_config['port']}"
@@ -38,14 +39,38 @@ def table_exists(sql_engine, table_name):
         # Don't use Sqlalchemy Inspector as it uses reflection and
         # it takes a very long time on Oracle.
         metadata = MetaData(bind=sql_engine)
-        _ = Table(table_name, metadata, autoload=True)
-        return True
+        return True, Table(table_name, metadata, autoload=True)
     except NoSuchTableError:
-        return False
+        return False, None
+
+
+def get_col_from_row_result(row, col):
+    try:
+        return row[col]
+    except NoSuchColumnError:
+        # If column is not found it may be because the column names are case insensitive.
+        # If so, col can be in upper case (what oracle considers as case insensitive)
+        # but the keys in row are in lower case (what sqlalchemy considers as case insensitive).
+        return row[col.lower()]
 
 
 class DatabaseExplorer:
-    def __init__(self, db_config: Dict):
+    def __init__(self, db_config: Optional[dict] = None):
+        self.db_schema = None
+        self._sql_engine = None
+        self._prev_db_config = None
+
+        if db_config:
+            self.update_connection(db_config)
+
+    def update_connection(self, db_config: dict):
+        # If the config hasn't been changed, don't do anything
+        if db_config == self._prev_db_config:
+            return
+
+        # Otherwise we update the DatabaseExplorer attributes
+        self._prev_db_config = db_config
+
         self._db_model = db_config.get("model")
         if self._db_model not in DB_DRIVERS:
             raise OperationOutcome(f"Database type {self._db_model} is unknown")
@@ -54,24 +79,21 @@ class DatabaseExplorer:
         self._sql_engine = create_engine(get_sql_url(self._db_model, db_config))
         self._metadata = MetaData(bind=self._sql_engine)
 
-    def _get_sql_table(self, table: str, schema: str = None):
+    def check_connection_exists(self):
+        if not self._sql_engine:
+            raise OperationOutcome("DatabaseExplorer was not provided with any credentials.")
+
+    def get_sql_alchemy_table(self, table: str, schema: Optional[str] = None):
         if not schema:
+            # Pyrog passes an empty string when there is no schema
             schema = None
-        table = table.strip()
-        return Table(table, self._metadata, schema=schema, autoload=True)
+        return Table(table.strip(), self._metadata, schema=schema, autoload=True)
 
-    def get_column_names(self, table: str, schema: str = None):
+    def get_sql_alchemy_column(self, column: str, table: str, schema: str = None):
         """
         Return column names of a table
         """
-        table = self._get_sql_table(table, schema)
-        return [column.name for column in table.c]
-
-    def get_column(self, column: str, table: str, schema: str = None):
-        """
-        Return column names of a table
-        """
-        table = self._get_sql_table(table, schema)
+        table = self.get_sql_alchemy_table(table, schema)
         try:
             return table.c[column]
         except KeyError:
@@ -81,36 +103,48 @@ class DatabaseExplorer:
             # as case insensitive).
             return table.c[column.lower()]
 
-    def get_table(self, table: str, schema=None, limit=1000, filters=[]):
+    def get_table_rows(self, table_name: str, schema=None, limit=100, filters=[]):
         """
         Return content of a table with a limit
         """
-        table = self._get_sql_table(table, schema)
+        table = self.get_sql_alchemy_table(table_name, schema)
         select = table.select()
 
         # Add filtering if any
         for filter_ in filters:
-            col = self.get_column(
+            col = self.get_sql_alchemy_column(
                 filter_["sqlColumn"]["column"], filter_["sqlColumn"]["table"], schema
             )
             rel_method = SQL_RELATIONS_TO_METHOD[filter_["relation"]]
             select = select.where(getattr(col, rel_method)(filter_["value"]))
 
-        # Return as JSON serializable object
-        return [[col for col in row] for row in self._sql_engine.execute(select.limit(limit))]
+        # Get column names with the right casing
+        if self.db_schema is None:
+            self.get_db_schema(schema)
+        columns_names = self.db_schema[table_name]
 
-    def explore(self, table: str, limit, schema=None, filters=[]):
+        # Return as JSON serializable object
+        return {
+            "fields": columns_names,
+            "rows": [
+                [get_col_from_row_result(row, col) for col in columns_names]
+                for row in self._sql_engine.execute(select.limit(limit))
+            ],
+        }
+
+    def explore(self, table_name: str, schema: str, limit: int, filters=[]):
         """
         Returns the first rows of a table alongside the column names.
         """
+        self.check_connection_exists()
+
         try:
-            return {
-                "fields": self.get_column_names(table, schema=schema),
-                "rows": self.get_table(table, schema=schema, limit=limit, filters=filters),
-            }
+            return self.get_table_rows(
+                table_name=table_name, schema=schema, limit=limit, filters=filters,
+            )
         except InvalidRequestError as e:
             if "requested table(s) not available" in str(e):
-                raise OperationOutcome(f"Table {table} does not exist in database")
+                raise OperationOutcome(f"Table {table_name} does not exist in database")
             else:
                 raise OperationOutcome(e)
         except Exception as e:
@@ -120,6 +154,8 @@ class DatabaseExplorer:
         """
         Returns all owners of a database.
         """
+        self.check_connection_exists()
+
         if self._db_model == ORACLE:
             sql_query = text("select username as owners from all_users")
         else:  # POSTGRES AND MSSQL
@@ -133,7 +169,8 @@ class DatabaseExplorer:
         """
         Returns the database schema for one owner of a database, as required by Pyrog
         """
-        db_schema = defaultdict(list)
+        self.check_connection_exists()
+        self.db_schema = defaultdict(list)
 
         if self._db_model == ORACLE:
             sql_query = text(
@@ -148,5 +185,6 @@ class DatabaseExplorer:
         with self._sql_engine.connect() as connection:
             result = connection.execute(sql_query).fetchall()
             for row in result:
-                db_schema[row["table_name"]].append(row["column_name"])
-        return db_schema
+                self.db_schema[row["table_name"]].append(row["column_name"])
+
+        return self.db_schema

@@ -11,7 +11,8 @@ api = Blueprint("api", __name__)
 # "Allow-Control-Allow-Origin" HTTP header
 CORS(api)
 
-engines = dict()
+# Instantiate a DatabaseExplorer
+explorer = DatabaseExplorer()
 
 
 def get_pyrog_client():
@@ -42,7 +43,7 @@ def explore(resource_id, table):
     filters = resource["filters"]
 
     try:
-        explorer = DatabaseExplorer(credentials)
+        explorer.update_connection(credentials)
         return jsonify(
             explorer.explore(table, limit=limit, schema=credentials.get("owner"), filters=filters)
         )
@@ -60,7 +61,7 @@ def get_owners():
     credentials = request.get_json()
 
     try:
-        explorer = DatabaseExplorer(credentials)
+        explorer.update_connection(credentials)
         db_owners = explorer.get_owners()
         return jsonify(db_owners)
     except OperationalError as e:
@@ -74,14 +75,13 @@ def get_owners():
 
 @api.route("/get_db_schema", methods=["POST"])
 def get_db_schema():
-
     credentials = request.get_json()
     owner = credentials.get("owner")
     if not owner:
         raise OperationOutcome("Database owner is required")
 
     try:
-        explorer = DatabaseExplorer(credentials)
+        explorer.update_connection(credentials)
         db_schema = explorer.get_db_schema(owner)
         return jsonify(db_schema)
     except OperationalError as e:

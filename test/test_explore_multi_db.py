@@ -49,8 +49,6 @@ class TestExploration:
                 owners,
                 [
                     "pg_toast",
-                    "pg_temp_1",
-                    "pg_toast_temp_1",
                     "pg_catalog",
                     "public",
                     "information_schema",

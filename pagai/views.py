@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request
 from flask_cors import CORS
 from sqlalchemy.exc import OperationalError
 
@@ -15,12 +15,6 @@ CORS(api)
 explorer = DatabaseExplorer()
 
 
-def get_pyrog_client():
-    if "pyrog_client" not in g:
-        g.pyrog_client = pyrog.PyrogClient()
-    return g.pyrog_client
-
-
 @api.route("/explore/<resource_id>/<table>", methods=["GET"])
 def explore(resource_id, table):
     """
@@ -30,8 +24,12 @@ def explore(resource_id, table):
     query params (eg: /explore/<resource_id>/<table>?first=10).
     """
     limit = request.args.get("first", 10, type=int)
+    # Get headers
+    authorization_header = request.headers.get("Authorization")
+    id_token = request.headers.get("IdToken")
 
-    resource = get_pyrog_client().get_resource(resource_id)
+    pyrog_client = pyrog.PyrogClient(authorization_header, id_token)
+    resource = pyrog_client.get_resource(resource_id)
 
     # Get credentials
     if not resource["source"]["credential"]:

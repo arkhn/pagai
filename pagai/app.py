@@ -1,14 +1,11 @@
 from flask import Flask
 
-from pagai.views import api, get_pyrog_client
+from pagai.views import api
 
 
 def create_app():
     app = Flask(__name__)
     app.register_blueprint(api)
-
-    with app.app_context():
-        get_pyrog_client()
 
     return app
 

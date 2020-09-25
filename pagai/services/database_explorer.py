@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import create_engine, MetaData, Table, text
 from sqlalchemy.exc import InvalidRequestError, NoSuchColumnError, NoSuchTableError

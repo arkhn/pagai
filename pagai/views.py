@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_cors import CORS
 from sqlalchemy.exc import OperationalError
 
-from pagai.errors import OperationOutcome
+from pagai.errors import AuthenticationError, AuthorizationError, OperationOutcome
 from pagai.services import pyrog
 from pagai.services.database_explorer import DatabaseExplorer
 
@@ -92,5 +92,15 @@ def get_db_schema():
 
 
 @api.errorhandler(OperationOutcome)
-def handle_bad_request(e):
+def handle_operation_outcome(e):
     return jsonify({"error": str(e)}), 400
+
+
+@api.errorhandler(AuthenticationError)
+def handle_authentication_error(e):
+    return jsonify({"error": str(e)}), 401
+
+
+@api.errorhandler(AuthorizationError)
+def handle_authorization_error(e):
+    return jsonify({"error": str(e)}), 403

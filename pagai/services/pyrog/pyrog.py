@@ -1,7 +1,7 @@
 import os
 import requests
 
-from pagai.errors import OperationOutcome
+from pagai.errors import AuthenticationError, AuthorizationError, OperationOutcome
 
 PYROG_URL = os.getenv("PYROG_URL")
 
@@ -83,6 +83,12 @@ class PyrogClient:
             )
         body = response.json()
         if "errors" in body:
+            status_code = body["errors"][0].get("statusCode")
+            error_message = body["errors"][0].get("message")
+            if status_code == 401:
+                raise AuthenticationError(error_message)
+            if status_code == 403:
+                raise AuthorizationError("You don't have the rights to perform this action.")
             raise Exception(f"GraphQL query failed with errors: {body['errors']}.")
 
         return body

@@ -26,9 +26,8 @@ def explore(resource_id, table):
     limit = request.args.get("first", 10, type=int)
     # Get headers
     authorization_header = request.headers.get("Authorization")
-    id_token = request.headers.get("IdToken")
 
-    pyrog_client = pyrog.PyrogClient(authorization_header, id_token)
+    pyrog_client = pyrog.PyrogClient(authorization_header)
     resource = pyrog_client.get_resource(resource_id)
 
     # Get credentials

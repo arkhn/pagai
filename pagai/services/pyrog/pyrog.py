@@ -45,7 +45,7 @@ query resource($resourceId: ID!) {
 
 
 class PyrogClient:
-    def __init__(self, auth_header, id_token):
+    def __init__(self, auth_header):
         if not auth_header:
             # Note that the id token is not mandatory because pyrog-server can introspect the
             # access to token with Hydra
@@ -55,7 +55,6 @@ class PyrogClient:
         self.headers = {
             "content-type": "application/json",
             "Authorization": auth_header,
-            "IdToken": id_token,
         }
 
     def run_graphql_query(self, graphql_query, variables=None, auth_required=True):
@@ -77,7 +76,7 @@ class PyrogClient:
             raise OperationOutcome("Could not connect to the Pyrog service")
 
         if response.status_code != 200:
-            raise Exception(
+            raise OperationOutcome(
                 "Graphql query failed with returning code "
                 f"{response.status_code}\n{response.json()}."
             )
@@ -89,7 +88,9 @@ class PyrogClient:
                 raise AuthenticationError(error_message)
             if status_code == 403:
                 raise AuthorizationError("You don't have the rights to perform this action.")
-            raise Exception(f"GraphQL query failed with errors: {body['errors']}.")
+            raise OperationOutcome(
+                f"GraphQL query failed with errors: {[err['message'] for err in body['errors']]}."
+            )
 
         return body
 

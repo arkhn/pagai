@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Dict, Optional, Callable
 
-from sqlalchemy import create_engine, MetaData, Table, text
+from sqlalchemy import Column, create_engine, MetaData, Table, text
 from sqlalchemy.exc import InvalidRequestError, NoSuchColumnError, NoSuchTableError
 from collections import defaultdict
 
@@ -17,17 +17,18 @@ URL_SUFFIXES = {
     # https://github.com/catherinedevlin/ipython-sql/issues/54
     MSSQL: "?driver=ODBC+Driver+17+for+SQL+Server&MARS_Connection=Yes",
 }
-SQL_RELATIONS_TO_METHOD = {
-    "<": "__lt__",
-    "<=": "__le__",
-    "<>": "__ne__",
-    "=": "__eq__",
-    ">": "__gt__",
-    ">=": "__ge__",
+
+SQL_RELATIONS_TO_METHOD: Dict[str, Callable[[Column, str], Callable]] = {
+    "<": lambda col, value: col.__lt__(value),
+    "<=": lambda col, value: col.__le__(value),
+    "<>": lambda col, value: col.__ne__(value),
+    "=": lambda col, value: col.__eq__(value),
+    ">": lambda col, value: col.__gt__(value),
+    ">=": lambda col, value: col.__ge__(value),
     # not handled yet
     # "BETWEEN": "",
-    "IN": "in_",
-    "LIKE": "like",
+    "IN": lambda col, value: col.in_(value.split(",")),
+    "LIKE": lambda col, value: col.like(value),
 }
 
 
@@ -120,8 +121,8 @@ class DatabaseExplorer:
             col = self.get_sql_alchemy_column(
                 filter_["sqlColumn"]["column"], filter_["sqlColumn"]["table"], schema
             )
-            rel_method = SQL_RELATIONS_TO_METHOD[filter_["relation"]]
-            select = select.where(getattr(col, rel_method)(filter_["value"]))
+            filter_clause = SQL_RELATIONS_TO_METHOD[filter_["relation"]](col, filter_["value"])
+            select = select.where(filter_clause)
 
         # Get column names with the right casing
         if self.db_schema is None:

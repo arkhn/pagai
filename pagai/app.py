@@ -1,11 +1,13 @@
 from flask import Flask
 
 from pagai.views import api
+from pagai.json_encoder import MyJSONEncoder
 
 
 def create_app():
     app = Flask(__name__)
     app.register_blueprint(api)
+    app.json_encoder = MyJSONEncoder
 
     return app
 

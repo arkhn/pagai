@@ -33,8 +33,8 @@ jobs:
           TAGS="${IMAGE}:${GITHUB_SHA::8}"
 
           # Has this workflow been triggered by a tag?
-          if [[ "${GITHUB_REF}" == refs/tags/api/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/api/}
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
 
             # Is the tag on master and does it follow numeric versioning?
             if [[ "${{ github.event.base_ref }}" == refs/heads/master ]] && [[ "${VERSION}" =~ ^v[0-9]{1,3}(\.[0-9]{1,3}(\.[0-9]{1,3})?)?$ ]]; then
@@ -96,8 +96,8 @@ jobs:
           TAGS="${IMAGE}:${GITHUB_SHA::8}"
 
           # Has this workflow been triggered by a tag?
-          if [[ "${GITHUB_REF}" == refs/tags/api/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/api/}
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
 
             # Is the tag on master and does it follow numeric versioning?
             if [[ "${{ github.event.base_ref }}" == refs/heads/master ]] && [[ "${VERSION}" =~ ^v[0-9]{1,3}(\.[0-9]{1,3}(\.[0-9]{1,3})?)?$ ]]; then

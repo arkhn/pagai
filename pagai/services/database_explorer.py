@@ -54,9 +54,10 @@ def get_col_from_row_result(row, col):
     try:
         return row[col]
     except NoSuchColumnError:
-        # If column is not found it may be because the column names are case insensitive.
-        # If so, col can be in upper case (what oracle considers as case insensitive)
-        # but the keys in row are in lower case (what sqlalchemy considers as case insensitive).
+        # If column is not found it may be because the column names are case
+        # insensitive. If so, col can be in upper case (what oracle considers
+        # as case insensitive) but the keys in row are in lower case
+        # (what sqlalchemy considers as case insensitive).
         return row[col.lower()]
 
 
@@ -103,9 +104,10 @@ class DatabaseExplorer:
         try:
             return table.c[column]
         except KeyError:
-            # If column is not in table.c it may be because the column names are case insensitive.
-            # If so, the schema can be in upper case (what oracle considers as case insensitive)
-            # but the keys in table.c are in lower case (what sqlalchemy considers
+            # If column is not in table.c it may be because the column names
+            # are case insensitive. If so, the schema can be in upper case
+            # (what oracle considers as case insensitive) but the keys
+            # in table.c are in lower case (what sqlalchemy considers
             # as case insensitive).
             return table.c[column.lower()]
 
@@ -173,7 +175,8 @@ class DatabaseExplorer:
 
     def get_db_schema(self, owner: str):
         """
-        Returns the database schema for one owner of a database, as required by Pyrog
+        Returns the database schema for one owner of a database,
+        as required by Pyrog.
         """
         self.check_connection_exists()
         self.db_schema = defaultdict(list)

@@ -13,6 +13,7 @@ def create_app():
 
 
 app = create_app()
+
 if __name__ == "__main__":
     # Start application
     app.run(debug=True, port=4000, host="0.0.0.0", load_dotenv=True)

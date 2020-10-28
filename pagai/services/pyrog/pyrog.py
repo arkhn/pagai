@@ -47,8 +47,8 @@ query resource($resourceId: ID!) {
 class PyrogClient:
     def __init__(self, auth_header):
         if not auth_header:
-            # Note that the id token is not mandatory because pyrog-server can introspect the
-            # access to token with Hydra
+            # Note that the id token is not mandatory because pyrog-server can
+            # introspect the access to token with Hydra
             raise OperationOutcome(
                 "An authorization token is required to forward queries to Pyrog-server"
             )
@@ -59,9 +59,10 @@ class PyrogClient:
 
     def run_graphql_query(self, graphql_query, variables=None, auth_required=True):
         """
-        This function queries a GraphQL endpoint
-        and returns a json parsed response. If auth_required is true, the auth token
-        will be passed in an Authorization header (an error will be raised if the token is missing).
+        This function queries a GraphQL endpoint and returns a json parsed
+        response. If auth_required is true, the auth token will be passed
+        in an Authorization header (an error will be raised if
+        the token is missing).
         """
         if not PYROG_URL:
             raise OperationOutcome("PYROG_URL is missing from environment")

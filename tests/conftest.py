@@ -5,7 +5,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 from pagai.services.database_explorer import get_sql_url, table_exists
-from test.settings import DATABASES
+from tests.settings import DATABASES
 
 
 def get_test_data_path(filename: str) -> str:
@@ -33,8 +33,9 @@ def load_table(sql_engine, table_name, data_file):
     data = pd.read_csv(
         get_test_data_path(data_file), sep=",", encoding="utf-8", parse_dates=["date"]
     )
-    # Use custom check if table exists instead of pandas feature df.to_sql(if_exists='replace')
-    # because it uses reflection on Oracle and it's very slow.
+    # Use custom check if table exists instead of pandas feature
+    # df.to_sql(if_exists='replace') because it uses reflection on Oracle and
+    # it's very slow.
     exists, table = table_exists(sql_engine, table_name)
     if exists:
         table.drop(sql_engine)

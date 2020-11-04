@@ -1,10 +1,39 @@
 from typing import Dict, Optional, Callable
 
-from sqlalchemy import Column, create_engine, MetaData, Table, text
+from sqlalchemy import (
+    and_,
+    Column,
+    create_engine,
+    MetaData,
+    Table,
+    text,
+)
 from sqlalchemy.exc import InvalidRequestError, NoSuchColumnError, NoSuchTableError
 from collections import defaultdict
 
 from pagai.errors import OperationOutcome
+
+
+def handle_between_filter(col, value):
+    values = value.split(",")
+    if len(values) != 2:
+        raise ValueError("BETWEEN filter expects 2 values separated by a comma.")
+    min_val = values[0].strip()
+    max_val = values[1].strip()
+    return and_(col.__ge__(min_val), col.__le__(max_val))
+
+
+SQL_RELATIONS_TO_METHOD: Dict[str, Callable[[Column, str], Callable]] = {
+    "<": lambda col, value: col.__lt__(value),
+    "<=": lambda col, value: col.__le__(value),
+    "<>": lambda col, value: col.__ne__(value),
+    "=": lambda col, value: col.__eq__(value),
+    ">": lambda col, value: col.__gt__(value),
+    ">=": lambda col, value: col.__ge__(value),
+    "BETWEEN": handle_between_filter,
+    "IN": lambda col, value: col.in_(value.split(",")),
+    "LIKE": lambda col, value: col.like(value),
+}
 
 MSSQL = "MSSQL"
 ORACLE = "ORACLE"
@@ -16,19 +45,6 @@ URL_SUFFIXES = {
     # the param MARS_Connection=Yes solves the following issue:
     # https://github.com/catherinedevlin/ipython-sql/issues/54
     MSSQL: "?driver=ODBC+Driver+17+for+SQL+Server&MARS_Connection=Yes",
-}
-
-SQL_RELATIONS_TO_METHOD: Dict[str, Callable[[Column, str], Callable]] = {
-    "<": lambda col, value: col.__lt__(value),
-    "<=": lambda col, value: col.__le__(value),
-    "<>": lambda col, value: col.__ne__(value),
-    "=": lambda col, value: col.__eq__(value),
-    ">": lambda col, value: col.__gt__(value),
-    ">=": lambda col, value: col.__ge__(value),
-    # not handled yet
-    # "BETWEEN": "",
-    "IN": lambda col, value: col.in_(value.split(",")),
-    "LIKE": lambda col, value: col.like(value),
 }
 
 

@@ -91,7 +91,7 @@ jobs:
     steps:
       - id: metadata
         run: |
-          IMAGE=arkhn/pagai-oracle11
+          IMAGE=mammouth.arkhn.com/arkhn/pagai-oracle11
           # Always tag with first 8 of sha
           TAGS="${IMAGE}:${GITHUB_SHA::8}"
 

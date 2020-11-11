@@ -2,13 +2,79 @@ from collections import Counter
 from datetime import datetime
 from unittest import TestCase
 
-from pagai.services.database_explorer import DatabaseExplorer, POSTGRES, MSSQL, ORACLE
+from pagai.services.database_explorer import DatabaseExplorer, POSTGRES, MSSQL, ORACLE11, ORACLE
 
 
-OWNER_FOR_DBTYPE = {
-    POSTGRES: "public",
-    MSSQL: "dbo",
-    ORACLE: "SYSTEM",
+OWNER_FOR_DBTYPE = {POSTGRES: "public", MSSQL: "dbo", ORACLE11: "SYSTEM", ORACLE: "SYSTEM"}
+ALL_OWNERS_FOR_DBTYPE = {
+    POSTGRES: ["pg_toast", "pg_catalog", "public", "information_schema"],
+    MSSQL: [
+        "dbo",
+        "guest",
+        "INFORMATION_SCHEMA",
+        "sys",
+        "db_owner",
+        "db_accessadmin",
+        "db_securityadmin",
+        "db_ddladmin",
+        "db_backupoperator",
+        "db_datareader",
+        "db_datawriter",
+        "db_denydatareader",
+        "db_denydatawriter",
+    ],
+    ORACLE11: [
+        "XS$NULL",
+        "APEX_040000",
+        "APEX_PUBLIC_USER",
+        "FLOWS_FILES",
+        "HR",
+        "MDSYS",
+        "ANONYMOUS",
+        "XDB",
+        "CTXSYS",
+        "OUTLN",
+        "SYSTEM",
+        "SYS",
+    ],
+    ORACLE: [
+        "SYS",
+        "AUDSYS",
+        "SYSTEM",
+        "SYSBACKUP",
+        "SYSDG",
+        "SYSKM",
+        "SYSRAC",
+        "OUTLN",
+        "XS$NULL",
+        "GSMADMIN_INTERNAL",
+        "GSMUSER",
+        "GSMROOTUSER",
+        "DIP",
+        "REMOTE_SCHEDULER_AGENT",
+        "DBSFWUSER",
+        "ORACLE_OCM",
+        "SYS$UMF",
+        "DBSNMP",
+        "APPQOSSYS",
+        "GSMCATUSER",
+        "GGSYS",
+        "XDB",
+        "ANONYMOUS",
+        "WMSYS",
+        "MDDATA",
+        "OJVMSYS",
+        "CTXSYS",
+        "ORDSYS",
+        "ORDDATA",
+        "ORDPLUGINS",
+        "SI_INFORMTN_SCHEMA",
+        "MDSYS",
+        "OLAPSYS",
+        "DVSYS",
+        "LBACSYS",
+        "DVF",
+    ],
 }
 
 
@@ -16,16 +82,16 @@ class TestExploration:
     def test_explore(self, db_config):
         explorer = DatabaseExplorer(db_config)
 
-        if db_config["model"] == ORACLE:
+        if db_config["model"] in [ORACLE11, ORACLE]:
             exploration = explorer.explore(
-                table_name="PATIENTS", schema=OWNER_FOR_DBTYPE[db_config["model"]], limit=2,
+                table_name="PATIENTS", schema=OWNER_FOR_DBTYPE[db_config["model"]], limit=2
             )
             TestCase().assertCountEqual(
                 exploration["fields"], ["index", "PATIENT_ID", "GENDER", "date"]
             )
         else:
             exploration = explorer.explore(
-                table_name="patients", schema=OWNER_FOR_DBTYPE[db_config["model"]], limit=2,
+                table_name="patients", schema=OWNER_FOR_DBTYPE[db_config["model"]], limit=2
             )
             TestCase().assertCountEqual(
                 exploration["fields"], ["index", "patient_id", "gender", "date"]
@@ -44,77 +110,7 @@ class TestExploration:
     def test_owners(self, db_config):
         explorer = DatabaseExplorer(db_config)
         owners = explorer.get_owners()
-        if db_config["model"] == POSTGRES:
-            TestCase().assertCountEqual(
-                owners,
-                [
-                    "pg_toast",
-                    "pg_catalog",
-                    "public",
-                    "information_schema",
-                ],
-            )
-        elif db_config["model"] == MSSQL:
-            TestCase().assertCountEqual(
-                owners,
-                [
-                    "dbo",
-                    "guest",
-                    "INFORMATION_SCHEMA",
-                    "sys",
-                    "db_owner",
-                    "db_accessadmin",
-                    "db_securityadmin",
-                    "db_ddladmin",
-                    "db_backupoperator",
-                    "db_datareader",
-                    "db_datawriter",
-                    "db_denydatareader",
-                    "db_denydatawriter",
-                ],
-            )
-        else:
-            TestCase().assertCountEqual(
-                owners,
-                [
-                    "SYS",
-                    "AUDSYS",
-                    "SYSTEM",
-                    "SYSBACKUP",
-                    "SYSDG",
-                    "SYSKM",
-                    "SYSRAC",
-                    "OUTLN",
-                    "XS$NULL",
-                    "GSMADMIN_INTERNAL",
-                    "GSMUSER",
-                    "GSMROOTUSER",
-                    "DIP",
-                    "REMOTE_SCHEDULER_AGENT",
-                    "DBSFWUSER",
-                    "ORACLE_OCM",
-                    "SYS$UMF",
-                    "DBSNMP",
-                    "APPQOSSYS",
-                    "GSMCATUSER",
-                    "GGSYS",
-                    "XDB",
-                    "ANONYMOUS",
-                    "WMSYS",
-                    "MDDATA",
-                    "OJVMSYS",
-                    "CTXSYS",
-                    "ORDSYS",
-                    "ORDDATA",
-                    "ORDPLUGINS",
-                    "SI_INFORMTN_SCHEMA",
-                    "MDSYS",
-                    "OLAPSYS",
-                    "DVSYS",
-                    "LBACSYS",
-                    "DVF",
-                ],
-            )
+        TestCase().assertCountEqual(owners, ALL_OWNERS_FOR_DBTYPE[db_config["model"]])
 
     def test_get_db_schema(self, db_config):
         explorer = DatabaseExplorer(db_config)
@@ -127,7 +123,7 @@ class TestExploration:
 
         all_tables = list(db_schema.keys())
 
-        if db_config["model"] == ORACLE:
+        if db_config["model"] in [ORACLE11, ORACLE]:
             # In the case of ORACLE, the table name "patients" was turned into "PATIENTS"
             test_tables = ["PATIENTS", "UPPERCASE", "CaseSensitive"]
         else:
@@ -138,7 +134,7 @@ class TestExploration:
 
         for table in test_tables:
             exploration = explorer.explore(
-                table_name=table, schema=OWNER_FOR_DBTYPE[db_config["model"]], limit=2,
+                table_name=table, schema=OWNER_FOR_DBTYPE[db_config["model"]], limit=2
             )
 
             TestCase().assertCountEqual(exploration["fields"], db_schema[table])

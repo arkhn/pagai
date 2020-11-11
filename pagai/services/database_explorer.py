@@ -1,13 +1,6 @@
 from typing import Dict, Optional, Callable
 
-from sqlalchemy import (
-    and_,
-    Column,
-    create_engine,
-    MetaData,
-    Table,
-    text,
-)
+from sqlalchemy import and_, Column, create_engine, MetaData, Table, text
 from sqlalchemy.exc import InvalidRequestError, NoSuchColumnError, NoSuchTableError
 from collections import defaultdict
 
@@ -36,11 +29,18 @@ SQL_RELATIONS_TO_METHOD: Dict[str, Callable[[Column, str], Callable]] = {
 }
 
 MSSQL = "MSSQL"
+ORACLE11 = "ORACLE11"
 ORACLE = "ORACLE"
 POSTGRES = "POSTGRES"
-DB_DRIVERS = {POSTGRES: "postgresql", ORACLE: "oracle+cx_oracle", MSSQL: "mssql+pyodbc"}
+DB_DRIVERS = {
+    POSTGRES: "postgresql",
+    ORACLE11: "oracle+cx_oracle",
+    ORACLE: "oracle+cx_oracle",
+    MSSQL: "mssql+pyodbc",
+}
 URL_SUFFIXES = {
     POSTGRES: "",
+    ORACLE11: "",
     ORACLE: "",
     # the param MARS_Connection=Yes solves the following issue:
     # https://github.com/catherinedevlin/ipython-sql/issues/54
@@ -180,7 +180,7 @@ class DatabaseExplorer:
         """
         self.check_connection_exists()
 
-        if self._db_model == ORACLE:
+        if self._db_model in [ORACLE, ORACLE11]:
             sql_query = text("select username as owners from all_users")
         else:  # POSTGRES AND MSSQL
             sql_query = text("select schema_name as owners from information_schema.schemata;")
@@ -197,7 +197,7 @@ class DatabaseExplorer:
         self.check_connection_exists()
         self.db_schema = defaultdict(list)
 
-        if self._db_model == ORACLE:
+        if self._db_model in [ORACLE, ORACLE11]:
             sql_query = text(
                 f"select table_name, column_name from all_tab_columns where owner='{owner}'"
             )

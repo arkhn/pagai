@@ -16,7 +16,6 @@ services:
     image: arkhn/pagai:latest
     build:
       context: .
-    env_file: .env.docker
     volumes:
       - ./models:/srv/pagai/models
     ports:

@@ -92,10 +92,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+      - uses: docker/login-action@v1
+        name: login to arkhn registry
         with:
-          name: image
-      - run: docker load -i image
+          username: ${{ secrets.DOCKER_LOGIN }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
       - id: tests
         env:
           TEST_ORACLE_HOST: ${{ secrets.TEST_ORACLE_HOST }}

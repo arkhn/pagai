@@ -1,4 +1,4 @@
-FROM arkhn/python-base:test-all-drivers
+FROM arkhn/python-db-drivers:0.1.0
 
 WORKDIR /app
 

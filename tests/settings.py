@@ -10,6 +10,7 @@ DATABASES = {
         "database": getenv("TEST_MSSQL_DB"),
         "login": getenv("TEST_MSSQL_LOGIN"),
         "password": getenv("TEST_MSSQL_PASSWORD"),
+        "owner": "dbo",
     },
     ORACLE11: {
         "host": getenv("TEST_ORACLE_11_HOST"),
@@ -17,6 +18,7 @@ DATABASES = {
         "database": getenv("TEST_ORACLE_11_DB"),
         "login": getenv("TEST_ORACLE_11_LOGIN"),
         "password": getenv("TEST_ORACLE_11_PASSWORD"),
+        "owner": "SYSTEM",
     },
     ORACLE: {
         "host": getenv("TEST_ORACLE_HOST"),
@@ -24,6 +26,7 @@ DATABASES = {
         "database": getenv("TEST_ORACLE_DB"),
         "login": getenv("TEST_ORACLE_LOGIN"),
         "password": getenv("TEST_ORACLE_PASSWORD"),
+        "owner": "SYSTEM",
     },
     POSTGRES: {
         "host": getenv("TEST_POSTGRES_HOST"),
@@ -31,5 +34,6 @@ DATABASES = {
         "database": getenv("TEST_POSTGRES_DB"),
         "login": getenv("TEST_POSTGRES_LOGIN", "test"),
         "password": getenv("TEST_POSTGRES_PASSWORD", "test"),
+        "owner": "public",
     },
 }

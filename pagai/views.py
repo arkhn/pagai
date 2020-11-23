@@ -11,9 +11,6 @@ api = Blueprint("api", __name__)
 # "Allow-Control-Allow-Origin" HTTP header
 CORS(api)
 
-# Instantiate a DatabaseExplorer
-explorer = DatabaseExplorer()
-
 
 @api.route("/explore/<resource_id>/<table>", methods=["GET"])
 def explore(resource_id, table):
@@ -40,10 +37,8 @@ def explore(resource_id, table):
     filters = resource["filters"]
 
     try:
-        explorer.update_connection(credentials)
-        return jsonify(
-            explorer.explore(table, limit=limit, schema=credentials.get("owner"), filters=filters)
-        )
+        explorer = DatabaseExplorer(credentials)
+        return jsonify(explorer.explore(table, limit=limit, filters=filters))
     except OperationalError as e:
         if "could not connect to server" in str(e):
             raise OperationOutcome(f"Could not connect to the database: {e}")
@@ -58,7 +53,7 @@ def get_owners():
     credentials = request.get_json()
 
     try:
-        explorer.update_connection(credentials)
+        explorer = DatabaseExplorer(credentials)
         db_owners = explorer.get_owners()
         return jsonify(db_owners)
     except OperationalError as e:
@@ -78,8 +73,8 @@ def get_db_schema():
         raise OperationOutcome("Database owner is required")
 
     try:
-        explorer.update_connection(credentials)
-        db_schema = explorer.get_db_schema(owner)
+        explorer = DatabaseExplorer(credentials)
+        db_schema = explorer.get_db_schema()
         return jsonify(db_schema)
     except OperationalError as e:
         if "could not connect to server" in str(e):

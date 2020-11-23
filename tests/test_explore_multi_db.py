@@ -5,7 +5,6 @@ from unittest import TestCase
 from pagai.services.database_explorer import DatabaseExplorer, POSTGRES, MSSQL, ORACLE11, ORACLE
 
 
-OWNER_FOR_DBTYPE = {POSTGRES: "public", MSSQL: "dbo", ORACLE11: "SYSTEM", ORACLE: "SYSTEM"}
 ALL_OWNERS_FOR_DBTYPE = {
     POSTGRES: ["pg_toast", "pg_catalog", "public", "information_schema"],
     MSSQL: [
@@ -83,16 +82,12 @@ class TestExploration:
         explorer = DatabaseExplorer(db_config)
 
         if db_config["model"] in [ORACLE11, ORACLE]:
-            exploration = explorer.explore(
-                table_name="PATIENTS", schema=OWNER_FOR_DBTYPE[db_config["model"]], limit=2
-            )
+            exploration = explorer.explore(table_name="PATIENTS", limit=2)
             TestCase().assertCountEqual(
                 exploration["fields"], ["index", "PATIENT_ID", "GENDER", "date"]
             )
         else:
-            exploration = explorer.explore(
-                table_name="patients", schema=OWNER_FOR_DBTYPE[db_config["model"]], limit=2
-            )
+            exploration = explorer.explore(table_name="patients", limit=2)
             TestCase().assertCountEqual(
                 exploration["fields"], ["index", "patient_id", "gender", "date"]
             )
@@ -114,17 +109,18 @@ class TestExploration:
 
     def test_get_db_schema(self, db_config):
         explorer = DatabaseExplorer(db_config)
-        db_schema = explorer.get_db_schema(owner=OWNER_FOR_DBTYPE[db_config["model"]])
+        db_schema = explorer.get_db_schema()
         self.verify_schema_structure(db_schema)
 
     def test_case_sensitivity(self, db_config):
         explorer = DatabaseExplorer(db_config)
-        db_schema = explorer.get_db_schema(owner=OWNER_FOR_DBTYPE[db_config["model"]])
+        db_schema = explorer.get_db_schema()
 
         all_tables = list(db_schema.keys())
 
         if db_config["model"] in [ORACLE11, ORACLE]:
-            # In the case of ORACLE, the table name "patients" was turned into "PATIENTS"
+            # In the case of ORACLE, the table name "patients"
+            # was turned into "PATIENTS"
             test_tables = ["PATIENTS", "UPPERCASE", "CaseSensitive"]
         else:
             test_tables = ["patients", "UPPERCASE", "CaseSensitive"]
@@ -133,9 +129,7 @@ class TestExploration:
             assert table in all_tables
 
         for table in test_tables:
-            exploration = explorer.explore(
-                table_name=table, schema=OWNER_FOR_DBTYPE[db_config["model"]], limit=2
-            )
+            exploration = explorer.explore(table_name=table, limit=2)
 
             TestCase().assertCountEqual(exploration["fields"], db_schema[table])
             assert len(exploration["rows"]) == 2

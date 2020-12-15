@@ -1,7 +1,7 @@
 ########
 # Image to compile the dependencies
 ########
-FROM arkhn/python-db-drivers:0.1.0 as compile-image
+FROM arkhn/python-db-drivers:0.2.0 as compile-image
 
 ENV VIRTUAL_ENV /srv/venv
 ENV PATH "${VIRTUAL_ENV}/bin:${PATH}"
@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir -r requirements/requirements-dev.txt
 ########
 # Runtime image
 ########
-FROM arkhn/python-db-drivers:0.1.0 as runtime-image
+FROM arkhn/python-db-drivers:0.2.0 as runtime-image
 
 ARG VERSION_SHA
 ARG VERSION_NAME

@@ -126,6 +126,33 @@ class DatabaseExplorer:
             filter_clause = SQL_RELATIONS_TO_METHOD[filter_["relation"]](col, filter_["value"])
             select = select.where(filter_clause)
 
+            # Apply joins
+            # TODO use fhir-river's analyzer?
+            # TODO I don't think it properly handles several filters
+            # with same join
+            join_tables = {}
+            for join in filter_["sqlColumn"]["joins"]:
+                # Get tables
+                left_table_name = join["tables"][0]["table"]
+                left_column_name = join["tables"][0]["column"]
+                right_table_name = join["tables"][1]["table"]
+                right_column_name = join["tables"][1]["column"]
+
+                left_table = join_tables.get(
+                    left_table_name, self.get_sql_alchemy_table(left_table_name),
+                )
+                right_table = join_tables.get(
+                    right_table_name, self.get_sql_alchemy_table(right_table_name),
+                )
+                join_tables[left_table_name] = left_table
+                join_tables[right_table_name] = right_table
+
+                right_column = self.get_sql_alchemy_column(left_column_name, right_table)
+                left_column = self.get_sql_alchemy_column(right_column_name, left_table)
+
+                # Add join
+                select = select.join(right_table, right_column == left_column, isouter=True,)
+
         columns_names = self.db_schema[table_name]
 
         # Return as JSON serializable object

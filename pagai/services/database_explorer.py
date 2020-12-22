@@ -96,20 +96,19 @@ class DatabaseExplorer:
     def get_sql_alchemy_table(self, table: str):
         return Table(table.strip(), self._metadata, schema=self.owner, autoload=True)
 
-    def get_sql_alchemy_column(self, column: str, table: str):
+    def get_sql_alchemy_column(self, column: str, sqlalchemy_table: Table):
         """
         Return column names of a table
         """
-        table = self.get_sql_alchemy_table(table)
         try:
-            return table.c[column]
+            return sqlalchemy_table.c[column]
         except KeyError:
             # If column is not in table.c it may be because the column names
             # are case insensitive. If so, the schema can be in upper case
             # (what oracle considers as case insensitive) but the keys
             # in table.c are in lower case (what sqlalchemy considers
             # as case insensitive).
-            return table.c[column.lower()]
+            return sqlalchemy_table.c[column.lower()]
 
     def get_table_rows(self, table_name: str, limit=100, filters=[]):
         """
@@ -120,9 +119,8 @@ class DatabaseExplorer:
 
         # Add filtering if any
         for filter_ in filters:
-            col = self.get_sql_alchemy_column(
-                filter_["sqlColumn"]["column"], filter_["sqlColumn"]["table"]
-            )
+            table = self.get_sql_alchemy_table(filter_["sqlColumn"]["table"])
+            col = self.get_sql_alchemy_column(filter_["sqlColumn"]["column"], table)
             filter_clause = SQL_RELATIONS_TO_METHOD[filter_["relation"]](col, filter_["value"])
             select = select.where(filter_clause)
 
@@ -151,7 +149,7 @@ class DatabaseExplorer:
                 left_column = self.get_sql_alchemy_column(right_column_name, left_table)
 
                 # Add join
-                select = select.join(right_table, right_column == left_column, isouter=True,)
+                select = select.join(right_table, right_column == left_column, isouter=True)
 
         columns_names = self.db_schema[table_name]
 

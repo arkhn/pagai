@@ -1,8 +1,9 @@
-from typing import Dict, Optional, Callable
-
+from collections import defaultdict
+from contextlib import contextmanager
 from sqlalchemy import and_, Column, create_engine, MetaData, Table, text
 from sqlalchemy.exc import InvalidRequestError, NoSuchColumnError, NoSuchTableError
-from collections import defaultdict
+from sqlalchemy.orm import sessionmaker
+from typing import Dict, Optional, Callable
 
 from pagai.errors import OperationOutcome
 
@@ -77,6 +78,16 @@ def get_col_from_row_result(row, col):
         return row[col.lower()]
 
 
+@contextmanager
+def session_scope(explorer):
+    """Provide a scope for sqlalchemy sessions."""
+    session = sessionmaker(explorer._sql_engine)()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
 class DatabaseExplorer:
     def __init__(self, db_config: Optional[dict] = None):
         self._db_model = db_config.get("model")
@@ -110,19 +121,19 @@ class DatabaseExplorer:
             # as case insensitive).
             return sqlalchemy_table.c[column.lower()]
 
-    def get_table_rows(self, table_name: str, limit=100, filters=[]):
+    def get_table_rows(self, session, table_name: str, limit=100, filters=[]):
         """
         Return content of a table with a limit
         """
         table = self.get_sql_alchemy_table(table_name)
-        select = table.select()
+        select = session.query(*table.c.values())
 
         # Add filtering if any
         for filter_ in filters:
             table = self.get_sql_alchemy_table(filter_["sqlColumn"]["table"])
             col = self.get_sql_alchemy_column(filter_["sqlColumn"]["column"], table)
             filter_clause = SQL_RELATIONS_TO_METHOD[filter_["relation"]](col, filter_["value"])
-            select = select.where(filter_clause)
+            select = select.filter(filter_clause)
 
             # Apply joins
             # TODO use fhir-river's analyzer?
@@ -158,7 +169,7 @@ class DatabaseExplorer:
             "fields": columns_names,
             "rows": [
                 [get_col_from_row_result(row, col) for col in columns_names]
-                for row in self._sql_engine.execute(select.limit(limit))
+                for row in select.limit(limit).all()
             ],
         }
 
@@ -168,15 +179,18 @@ class DatabaseExplorer:
         """
         self.check_connection_exists()
 
-        try:
-            return self.get_table_rows(table_name=table_name, limit=limit, filters=filters)
-        except InvalidRequestError as e:
-            if "requested table(s) not available" in str(e):
-                raise OperationOutcome(f"Table {table_name} does not exist in database")
-            else:
+        with session_scope(self) as session:
+            try:
+                return self.get_table_rows(
+                    session=session, table_name=table_name, limit=limit, filters=filters,
+                )
+            except InvalidRequestError as e:
+                if "requested table(s) not available" in str(e):
+                    raise OperationOutcome(f"Table {table_name} does not exist in database")
+                else:
+                    raise OperationOutcome(e)
+            except Exception as e:
                 raise OperationOutcome(e)
-        except Exception as e:
-            raise OperationOutcome(e)
 
     def get_owners(self):
         """

@@ -1,7 +1,7 @@
 from collections import defaultdict
 from contextlib import contextmanager
 from sqlalchemy import and_, Column, create_engine, MetaData, Table, text
-from sqlalchemy.exc import InvalidRequestError, NoSuchColumnError, NoSuchTableError
+from sqlalchemy.exc import InvalidRequestError, NoSuchTableError
 from sqlalchemy.orm import sessionmaker
 from typing import Dict, Optional, Callable
 
@@ -67,17 +67,6 @@ def table_exists(sql_engine, table_name):
         return False, None
 
 
-def get_col_from_row_result(row, col):
-    try:
-        return row[col]
-    except NoSuchColumnError:
-        # If column is not found it may be because the column names are case
-        # insensitive. If so, col can be in upper case (what oracle considers
-        # as case insensitive) but the keys in row are in lower case
-        # (what sqlalchemy considers as case insensitive).
-        return row[col.lower()]
-
-
 @contextmanager
 def session_scope(explorer):
     """Provide a scope for sqlalchemy sessions."""
@@ -125,8 +114,11 @@ class DatabaseExplorer:
         """
         Return content of a table with a limit
         """
+        columns_names = self.db_schema[table_name]
+
         table = self.get_sql_alchemy_table(table_name)
-        select = session.query(*table.c.values())
+        columns = [self.get_sql_alchemy_column(col, table) for col in columns_names]
+        select = session.query(*columns)
 
         # Add filtering if any
         for filter_ in filters:
@@ -137,8 +129,6 @@ class DatabaseExplorer:
 
             # Apply joins
             # TODO use fhir-river's analyzer?
-            # TODO I don't think it properly handles several filters
-            # with same join
             join_tables = {}
             for join in filter_["sqlColumn"]["joins"]:
                 # Get tables
@@ -162,15 +152,10 @@ class DatabaseExplorer:
                 # Add join
                 select = select.join(right_table, right_column == left_column, isouter=True)
 
-        columns_names = self.db_schema[table_name]
-
         # Return as JSON serializable object
         return {
             "fields": columns_names,
-            "rows": [
-                [get_col_from_row_result(row, col) for col in columns_names]
-                for row in select.limit(limit).all()
-            ],
+            "rows": [list(row) for row in select.limit(limit).all()],
         }
 
     def explore(self, table_name: str, limit: int, filters=[]):

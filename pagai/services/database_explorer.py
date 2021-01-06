@@ -1,8 +1,9 @@
-from typing import Dict, Optional, Callable
-
-from sqlalchemy import and_, Column, create_engine, MetaData, Table, text
-from sqlalchemy.exc import InvalidRequestError, NoSuchColumnError, NoSuchTableError
 from collections import defaultdict
+from contextlib import contextmanager
+from sqlalchemy import and_, Column, create_engine, MetaData, Table, text
+from sqlalchemy.exc import InvalidRequestError, NoSuchTableError
+from sqlalchemy.orm import sessionmaker
+from typing import Dict, Optional, Callable
 
 from pagai.errors import OperationOutcome
 
@@ -66,15 +67,14 @@ def table_exists(sql_engine, table_name):
         return False, None
 
 
-def get_col_from_row_result(row, col):
+@contextmanager
+def session_scope(explorer):
+    """Provide a scope for sqlalchemy sessions."""
+    session = sessionmaker(explorer._sql_engine)()
     try:
-        return row[col]
-    except NoSuchColumnError:
-        # If column is not found it may be because the column names are case
-        # insensitive. If so, col can be in upper case (what oracle considers
-        # as case insensitive) but the keys in row are in lower case
-        # (what sqlalchemy considers as case insensitive).
-        return row[col.lower()]
+        yield session
+    finally:
+        session.close()
 
 
 class DatabaseExplorer:
@@ -96,45 +96,66 @@ class DatabaseExplorer:
     def get_sql_alchemy_table(self, table: str):
         return Table(table.strip(), self._metadata, schema=self.owner, autoload=True)
 
-    def get_sql_alchemy_column(self, column: str, table: str):
+    def get_sql_alchemy_column(self, column: str, sqlalchemy_table: Table):
         """
         Return column names of a table
         """
-        table = self.get_sql_alchemy_table(table)
         try:
-            return table.c[column]
+            return sqlalchemy_table.c[column]
         except KeyError:
             # If column is not in table.c it may be because the column names
             # are case insensitive. If so, the schema can be in upper case
             # (what oracle considers as case insensitive) but the keys
             # in table.c are in lower case (what sqlalchemy considers
             # as case insensitive).
-            return table.c[column.lower()]
+            return sqlalchemy_table.c[column.lower()]
 
-    def get_table_rows(self, table_name: str, limit=100, filters=[]):
+    def get_table_rows(self, session, table_name: str, limit=100, filters=[]):
         """
         Return content of a table with a limit
         """
+        columns_names = self.db_schema[table_name]
+
         table = self.get_sql_alchemy_table(table_name)
-        select = table.select()
+        columns = [self.get_sql_alchemy_column(col, table) for col in columns_names]
+        select = session.query(*columns)
 
         # Add filtering if any
         for filter_ in filters:
-            col = self.get_sql_alchemy_column(
-                filter_["sqlColumn"]["column"], filter_["sqlColumn"]["table"]
-            )
+            table = self.get_sql_alchemy_table(filter_["sqlColumn"]["table"])
+            col = self.get_sql_alchemy_column(filter_["sqlColumn"]["column"], table)
             filter_clause = SQL_RELATIONS_TO_METHOD[filter_["relation"]](col, filter_["value"])
-            select = select.where(filter_clause)
+            select = select.filter(filter_clause)
 
-        columns_names = self.db_schema[table_name]
+            # Apply joins
+            # TODO use fhir-river's analyzer?
+            join_tables = {}
+            for join in filter_["sqlColumn"]["joins"]:
+                # Get tables
+                left_table_name = join["tables"][0]["table"]
+                left_column_name = join["tables"][0]["column"]
+                right_table_name = join["tables"][1]["table"]
+                right_column_name = join["tables"][1]["column"]
+
+                left_table = join_tables.get(
+                    left_table_name, self.get_sql_alchemy_table(left_table_name),
+                )
+                right_table = join_tables.get(
+                    right_table_name, self.get_sql_alchemy_table(right_table_name),
+                )
+                join_tables[left_table_name] = left_table
+                join_tables[right_table_name] = right_table
+
+                right_column = self.get_sql_alchemy_column(left_column_name, right_table)
+                left_column = self.get_sql_alchemy_column(right_column_name, left_table)
+
+                # Add join
+                select = select.join(right_table, right_column == left_column, isouter=True)
 
         # Return as JSON serializable object
         return {
             "fields": columns_names,
-            "rows": [
-                [get_col_from_row_result(row, col) for col in columns_names]
-                for row in self._sql_engine.execute(select.limit(limit))
-            ],
+            "rows": [list(row) for row in select.limit(limit).all()],
         }
 
     def explore(self, table_name: str, limit: int, filters=[]):
@@ -143,15 +164,18 @@ class DatabaseExplorer:
         """
         self.check_connection_exists()
 
-        try:
-            return self.get_table_rows(table_name=table_name, limit=limit, filters=filters)
-        except InvalidRequestError as e:
-            if "requested table(s) not available" in str(e):
-                raise OperationOutcome(f"Table {table_name} does not exist in database")
-            else:
+        with session_scope(self) as session:
+            try:
+                return self.get_table_rows(
+                    session=session, table_name=table_name, limit=limit, filters=filters,
+                )
+            except InvalidRequestError as e:
+                if "requested table(s) not available" in str(e):
+                    raise OperationOutcome(f"Table {table_name} does not exist in database")
+                else:
+                    raise OperationOutcome(e)
+            except Exception as e:
                 raise OperationOutcome(e)
-        except Exception as e:
-            raise OperationOutcome(e)
 
     def get_owners(self):
         """

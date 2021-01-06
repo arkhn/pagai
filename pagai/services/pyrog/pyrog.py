@@ -5,14 +5,6 @@ from pagai.errors import AuthenticationError, AuthorizationError, OperationOutco
 
 PYROG_URL = os.getenv("PYROG_URL")
 
-login_mutation = """
-mutation login($email: String!, $password: String!) {
-  login(email: $email, password: $password) {
-    token
-  }
-}
-"""
-
 resource_query = """
 query resource($resourceId: ID!) {
     resource(resourceId: $resourceId) {
@@ -23,6 +15,12 @@ query resource($resourceId: ID!) {
                 id
                 table
                 column
+                joins {
+                    tables {
+                        table
+                        column
+                    }
+                }
             }
             relation
             value

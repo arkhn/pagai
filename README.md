@@ -72,6 +72,12 @@ If you're enthusiastic about our project, :star: it to show your support! :heart
 
 ## Dev
 
+### Run locally
+
+```shell
+PYTHONPATH=. python pagai/app.py
+```
+
 ### Docker build
 
 ```shell

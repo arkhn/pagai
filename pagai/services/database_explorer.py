@@ -86,15 +86,14 @@ class DatabaseExplorer:
         self._sql_engine = create_engine(get_sql_url(self._db_model, db_config))
         self._metadata = MetaData(bind=self._sql_engine)
 
-        self.owner = db_config.get("owner")
-        self.db_schema = self.get_db_schema()
+        self.db_schema = {}
 
     def check_connection_exists(self):
         if not self._sql_engine:
             raise OperationOutcome("DatabaseExplorer was not provided with any credentials.")
 
-    def get_sql_alchemy_table(self, table: str):
-        return Table(table.strip(), self._metadata, schema=self.owner, autoload=True)
+    def get_sql_alchemy_table(self, owner: str, table: str):
+        return Table(table.strip(), self._metadata, schema=owner, autoload=True)
 
     def get_sql_alchemy_column(self, column: str, sqlalchemy_table: Table):
         """
@@ -110,19 +109,21 @@ class DatabaseExplorer:
             # as case insensitive).
             return sqlalchemy_table.c[column.lower()]
 
-    def get_table_rows(self, session, table_name: str, limit=100, filters=[]):
+    def get_table_rows(self, session, owner: str, table_name: str, limit=100, filters=[]):
         """
         Return content of a table with a limit
         """
-        columns_names = self.db_schema[table_name]
+        columns_names = self.get_owner_schema(owner)[table_name]
 
-        table = self.get_sql_alchemy_table(table_name)
+        table = self.get_sql_alchemy_table(owner, table_name)
         columns = [self.get_sql_alchemy_column(col, table) for col in columns_names]
         select = session.query(*columns)
 
         # Add filtering if any
         for filter_ in filters:
-            table = self.get_sql_alchemy_table(filter_["sqlColumn"]["table"])
+            table = self.get_sql_alchemy_table(
+                filter_["sqlColumn"]["owner"]["name"], filter_["sqlColumn"]["table"]
+            )
             col = self.get_sql_alchemy_column(filter_["sqlColumn"]["column"], table)
             filter_clause = SQL_RELATIONS_TO_METHOD[filter_["relation"]](col, filter_["value"])
             select = select.filter(filter_clause)
@@ -132,16 +133,19 @@ class DatabaseExplorer:
             join_tables = {}
             for join in filter_["sqlColumn"]["joins"]:
                 # Get tables
+                left_table_owner = join["tables"][0]["owner"]["name"]
                 left_table_name = join["tables"][0]["table"]
                 left_column_name = join["tables"][0]["column"]
+                right_table_owner = join["tables"][1]["owner"]["name"]
                 right_table_name = join["tables"][1]["table"]
                 right_column_name = join["tables"][1]["column"]
 
                 left_table = join_tables.get(
-                    left_table_name, self.get_sql_alchemy_table(left_table_name),
+                    left_table_name, self.get_sql_alchemy_table(left_table_owner, left_table_name)
                 )
                 right_table = join_tables.get(
-                    right_table_name, self.get_sql_alchemy_table(right_table_name),
+                    right_table_name,
+                    self.get_sql_alchemy_table(right_table_owner, right_table_name),
                 )
                 join_tables[left_table_name] = left_table
                 join_tables[right_table_name] = right_table
@@ -153,12 +157,9 @@ class DatabaseExplorer:
                 select = select.join(right_table, right_column == left_column, isouter=True)
 
         # Return as JSON serializable object
-        return {
-            "fields": columns_names,
-            "rows": [list(row) for row in select.limit(limit).all()],
-        }
+        return {"fields": columns_names, "rows": [list(row) for row in select.limit(limit).all()]}
 
-    def explore(self, table_name: str, limit: int, filters=[]):
+    def explore(self, owner: str, table_name: str, limit: int, filters=[]):
         """
         Returns the first rows of a table alongside the column names.
         """
@@ -167,7 +168,11 @@ class DatabaseExplorer:
         with session_scope(self) as session:
             try:
                 return self.get_table_rows(
-                    session=session, table_name=table_name, limit=limit, filters=filters,
+                    session=session,
+                    owner=owner,
+                    table_name=table_name,
+                    limit=limit,
+                    filters=filters,
                 )
             except InvalidRequestError as e:
                 if "requested table(s) not available" in str(e):
@@ -192,27 +197,31 @@ class DatabaseExplorer:
             result = connection.execute(sql_query).fetchall()
         return [r["owners"] for r in result]
 
-    def get_db_schema(self):
+    def get_owner_schema(self, owner: str):
         """
         Returns the database schema for one owner of a database,
         as required by Pyrog.
         """
+        if self.db_schema.get(owner):
+            return self.db_schema[owner]
+
         self.check_connection_exists()
-        db_schema = defaultdict(list)
+        schema = defaultdict(list)
 
         if self._db_model in [ORACLE, ORACLE11]:
             sql_query = text(
-                f"select table_name, column_name from all_tab_columns where owner='{self.owner}'"
+                f"select table_name, column_name from all_tab_columns where owner='{owner}'"
             )
         else:  # POSTGRES AND MSSQL
             sql_query = text(
                 f"select table_name, column_name from information_schema.columns "
-                f"where table_schema='{self.owner}';"
+                f"where table_schema='{owner}';"
             )
 
         with self._sql_engine.connect() as connection:
             result = connection.execute(sql_query).fetchall()
             for row in result:
-                db_schema[row["table_name"]].append(row["column_name"])
+                schema[row["table_name"]].append(row["column_name"])
 
-        return db_schema
+        self.db_schema[owner] = schema
+        return schema

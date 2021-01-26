@@ -6,17 +6,25 @@ from pagai.errors import AuthenticationError, AuthorizationError, OperationOutco
 PYROG_URL = os.getenv("PYROG_URL")
 
 resource_query = """
-query resource($resourceId: ID!) {
-    resource(resourceId: $resourceId) {
+query resource($resourceId: String!) {
+    resource(where: {id: $resourceId}) {
         id
         filters {
             id
             sqlColumn {
                 id
+                owner {
+                    id
+                    name
+                }
                 table
                 column
                 joins {
                     tables {
+                        owner {
+                            id
+                            name
+                        }
                         table
                         column
                     }
@@ -32,7 +40,6 @@ query resource($resourceId: ID!) {
                 host
                 port
                 database
-                owner
                 login
                 password: decryptedPassword
             }
@@ -50,10 +57,7 @@ class PyrogClient:
             raise OperationOutcome(
                 "An authorization token is required to forward queries to Pyrog-server"
             )
-        self.headers = {
-            "content-type": "application/json",
-            "Authorization": auth_header,
-        }
+        self.headers = {"content-type": "application/json", "Authorization": auth_header}
 
     def run_graphql_query(self, graphql_query, variables=None, auth_required=True):
         """

@@ -82,12 +82,12 @@ class TestExploration:
         explorer = DatabaseExplorer(db_config)
 
         if db_config["model"] in [ORACLE11, ORACLE]:
-            exploration = explorer.explore(table_name="PATIENTS", limit=2)
+            exploration = explorer.explore(owner=db_config["owner"], table_name="PATIENTS", limit=2)
             TestCase().assertCountEqual(
                 exploration["fields"], ["index", "PATIENT_ID", "GENDER", "date"]
             )
         else:
-            exploration = explorer.explore(table_name="patients", limit=2)
+            exploration = explorer.explore(owner=db_config["owner"], table_name="patients", limit=2)
             TestCase().assertCountEqual(
                 exploration["fields"], ["index", "patient_id", "gender", "date"]
             )
@@ -107,14 +107,14 @@ class TestExploration:
         owners = explorer.get_owners()
         TestCase().assertCountEqual(owners, ALL_OWNERS_FOR_DBTYPE[db_config["model"]])
 
-    def test_get_db_schema(self, db_config):
+    def test_get_owner_schema(self, db_config):
         explorer = DatabaseExplorer(db_config)
-        db_schema = explorer.get_db_schema()
+        db_schema = explorer.get_owner_schema(db_config["owner"])
         self.verify_schema_structure(db_schema)
 
     def test_case_sensitivity(self, db_config):
         explorer = DatabaseExplorer(db_config)
-        db_schema = explorer.get_db_schema()
+        db_schema = explorer.get_owner_schema(db_config["owner"])
 
         all_tables = list(db_schema.keys())
 
@@ -129,7 +129,7 @@ class TestExploration:
             assert table in all_tables
 
         for table in test_tables:
-            exploration = explorer.explore(table_name=table, limit=2)
+            exploration = explorer.explore(owner=db_config["owner"], table_name=table, limit=2)
 
             TestCase().assertCountEqual(exploration["fields"], db_schema[table])
             assert len(exploration["rows"]) == 2
